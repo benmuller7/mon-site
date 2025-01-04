@@ -7,7 +7,7 @@ const generateUniqueId = () => {
 // Informations GitHub
 const GITHUB_OWNER = 'benmuller7'; // Remplacez par votre nom d'utilisateur GitHub
 const GITHUB_REPO = 'Images-Depannage'; // Nom du dépôt
-const GITHUB_TOKEN = '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';
+const GITHUB_TOKEN = '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'; // Token GitHub avec les permissions nécessaires
 
 // Fonction pour uploader un fichier sur GitHub
 async function uploadToGitHub(file) {
@@ -16,17 +16,13 @@ async function uploadToGitHub(file) {
     return new Promise((resolve, reject) => {
         reader.onload = async () => {
             const base64Content = reader.result.split(',')[1];
-            const filePath = `uploads/${Date.now()}_${file.name}`;
+            const filePath = `uploads/${Date.now()}_${file.name}`; // Chemin unique pour le fichier
 
             try {
-                console.log('URL appelée :', `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`);
-                console.log('Nom du fichier :', file.name);
-                console.log('Token utilisé (tronqué) :', GITHUB_TOKEN.substring(0, 6) + '...');
-
                 const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`, {
                     method: 'PUT',
                     headers: {
-                        Authorization: `Bearer ${GITHUB_TOKEN}`, // Inclut le token ici
+                        Authorization: `Bearer ${GITHUB_TOKEN}`,
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
@@ -37,27 +33,19 @@ async function uploadToGitHub(file) {
 
                 if (response.ok) {
                     const jsonResponse = await response.json();
-                    resolve(jsonResponse.content.download_url); // Retourne le lien direct vers le fichier
+                    resolve(jsonResponse.content.download_url); // Lien du fichier
                 } else {
-                    console.error('Erreur API GitHub :', response.status, response.statusText);
                     reject(`Erreur lors de l'upload : ${response.statusText}`);
                 }
             } catch (error) {
-                console.error('Erreur réseau :', error);
                 reject(error);
             }
         };
 
-        reader.onerror = (error) => {
-            console.error('Erreur lors de la lecture du fichier :', error);
-            reject(error);
-        };
-
+        reader.onerror = reject;
         reader.readAsDataURL(file);
     });
 }
-
-
 
 // Sélection des étapes
 const steps = document.querySelectorAll('.form-step');
@@ -221,20 +209,6 @@ photoInput.addEventListener('change', handlePhotoUpload);
 document.getElementById('repairForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
-  const files = document.getElementById('photoInput').files;
-    const photoLinks = []; // Stocke les liens des photos uploadées
-
-    for (const file of files) {
-        try {
-            const link = await uploadToPublicRepo(file);
-            photoLinks.push(link);
-        } catch (error) {
-            console.error('Erreur lors de l'upload d'une photo :', error);
-        }
-    }
-
-    console.log('Liens des photos uploadées :', photoLinks);
-    
     const cguChecked = document.getElementById('cgu').checked;
     if (!cguChecked) {
         document.getElementById('cguError').textContent = 'Vous devez accepter les CGU.';
@@ -242,7 +216,7 @@ document.getElementById('repairForm').addEventListener('submit', async (e) => {
     }
 
     const requestId = generateUniqueId();
-    const photoLinks = await handlePhotoSubmit(); // Récupère les liens des photos uploadées
+    const photoLinks = await handlePhotoSubmit(); // Récupérer les liens des photos
 
     const formData = {
         request_id: requestId,
@@ -253,7 +227,7 @@ document.getElementById('repairForm').addEventListener('submit', async (e) => {
         type: document.getElementById('type').value,
         urgency: document.getElementById('urgency').value,
         description: document.getElementById('description').value,
-        photos: photoLinks, // Ajoute tous les liens des photos
+        photos: photoLinks, // Liens GitHub des photos
     };
 
     console.log('Form data being submitted:', formData);
@@ -271,21 +245,20 @@ document.getElementById('repairForm').addEventListener('submit', async (e) => {
 
 // Gestion des photos ajoutées et envoi à GitHub
 async function handlePhotoSubmit() {
-    const files = photoInput.files; // Récupère tous les fichiers sélectionnés
-    const links = []; // Tableau pour stocker les liens des photos
+    const files = photoInput.files;
+    const links = [];
 
-    for (const file of files) { // Boucle sur chaque fichier sélectionné
+    for (const file of files) {
         try {
-            const link = await uploadToGitHub(file); // Upload chaque fichier individuellement
-            links.push(link); // Ajoute le lien de téléchargement au tableau
+            const link = await uploadToGitHub(file);
+            links.push(link);
         } catch (error) {
             console.error('Erreur lors de l\'upload GitHub:', error);
         }
     }
 
-    return links; // Retourne tous les liens des fichiers uploadés
+    return links;
 }
-
 
 
 // Initialisation au chargement
