@@ -7,7 +7,7 @@ const generateUniqueId = () => {
 // Informations GitHub
 const GITHUB_OWNER = 'benmuller7'; // Remplacez par votre nom d'utilisateur GitHub
 const GITHUB_REPO = 'Images-Depannage'; // Nom du dépôt
-const GITHUB_TOKEN = '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'; // Token GitHub avec les permissions nécessaires
+const GITHUB_TOKEN = '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'; // Token GitHub avec les permissions nécessaires
 
 // Fonction pour uploader un fichier sur GitHub
 async function uploadToGitHub(file) {
@@ -19,7 +19,7 @@ async function uploadToGitHub(file) {
             const filePath = `uploads/${Date.now()}_${file.name}`; // Crée un chemin unique pour chaque fichier
 
             try {
-                const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`, {
+                const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/${filePath}`, {
                     method: 'PUT',
                     headers: {
                         Authorization: `Bearer ${GITHUB_TOKEN}`,
