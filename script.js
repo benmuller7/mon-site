@@ -7,7 +7,7 @@ const generateUniqueId = () => {
 // Informations GitHub
 const GITHUB_OWNER = 'benmuller7'; // Remplacez par votre nom d'utilisateur GitHub
 const GITHUB_REPO = 'Images-Depannage'; // Nom du dépôt
-const GITHUB_TOKEN = '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'; // Token GitHub avec les permissions nécessaires
+const GITHUB_TOKEN = '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'; // Token GitHub avec les permissions nécessaires
 
 // Fonction pour uploader un fichier sur GitHub
 async function uploadToGitHub(file) {
