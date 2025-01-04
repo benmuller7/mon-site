@@ -7,20 +7,26 @@ const generateUniqueId = () => {
 // Informations GitHub
 const GITHUB_OWNER = 'benmuller7'; // Remplacez par votre nom d'utilisateur GitHub
 const GITHUB_REPO = 'Images-Depannage'; // Nom du dépôt
+const GITHUB_TOKEN = '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';
 
 // Fonction pour uploader un fichier sur GitHub
-async function uploadToPublicRepo(file) {
+async function uploadToGitHub(file) {
     const reader = new FileReader();
 
     return new Promise((resolve, reject) => {
         reader.onload = async () => {
             const base64Content = reader.result.split(',')[1];
-            const filePath = `uploads/${Date.now()}_${file.name}`; // Chemin unique
+            const filePath = `uploads/${Date.now()}_${file.name}`;
 
             try {
-                const response = await fetch(`https://api.github.com/repos/benmuller/Image-Depannage/contents/${filePath}`, {
+                console.log('URL appelée :', `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`);
+                console.log('Nom du fichier :', file.name);
+                console.log('Token utilisé (tronqué) :', GITHUB_TOKEN.substring(0, 6) + '...');
+
+                const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`, {
                     method: 'PUT',
                     headers: {
+                        Authorization: `Bearer ${GITHUB_TOKEN}`, // Inclut le token ici
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
@@ -29,13 +35,12 @@ async function uploadToPublicRepo(file) {
                     }),
                 });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error('Erreur GitHub :', errorData);
-                    reject(`Erreur lors de l'upload : ${response.statusText}`);
+                if (response.ok) {
+                    const jsonResponse = await response.json();
+                    resolve(jsonResponse.content.download_url); // Retourne le lien direct vers le fichier
                 } else {
-                    const responseData = await response.json();
-                    resolve(responseData.content.download_url); // Lien direct vers l'image
+                    console.error('Erreur API GitHub :', response.status, response.statusText);
+                    reject(`Erreur lors de l'upload : ${response.statusText}`);
                 }
             } catch (error) {
                 console.error('Erreur réseau :', error);
@@ -43,10 +48,15 @@ async function uploadToPublicRepo(file) {
             }
         };
 
-        reader.onerror = reject;
-        reader.readAsDataURL(file); // Convertit le fichier en Base64
+        reader.onerror = (error) => {
+            console.error('Erreur lors de la lecture du fichier :', error);
+            reject(error);
+        };
+
+        reader.readAsDataURL(file);
     });
 }
+
 
 
 // Sélection des étapes
