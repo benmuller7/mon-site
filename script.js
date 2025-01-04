@@ -1,4 +1,4 @@
-// Génération d'un identifiant unique
+m// Génération d'un identifiant unique
 const generateUniqueId = () => {
     const timestampPart = String(Date.now()).slice(-5);
     const randomPart = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
@@ -19,10 +19,10 @@ async function uploadToGitHub(file) {
             const filePath = `uploads/${Date.now()}_${file.name}`; // Chemin unique pour le fichier
 
             try {
-                const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`, {
+                const response = await fetch(`https://api.github.com/repos/benmuller7/Images-Depannage/contents/${filePath}`, {
                     method: 'PUT',
                     headers: {
-                        Authorization: `Bearer ${GITHUB_TOKEN}`,
+                        Authorization: `Bearer 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`,
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
