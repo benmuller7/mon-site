@@ -19,7 +19,7 @@ async function uploadToGitHub(file) {
             const filePath = `uploads/${Date.now()}_${file.name}`; // Chemin unique pour le fichier
 
             try {
-                const response = await fetch(`https://api.github.com/repos/benmuller7/Images-Depannage/contents/${filePath}`, {
+                const response = await fetch(`https://api.github.com/repos/benmuller7/Images-Depannage/contents/uploads/${filePath}`, {
                     method: 'PUT',
                     headers: {
                         Authorization: `Bearer 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`,
