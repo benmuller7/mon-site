@@ -29,7 +29,6 @@ async function uploadToGitHub(file) {
                         message: `Ajout de la photo ${file.name}`,
                         content: base64Content,
                     }),
-                });
 
                 if (response.ok) {
                     const jsonResponse = await response.json();
