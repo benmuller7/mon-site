@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demande de Dépannage - SmartImmo.Pro</title>
+    <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+<script>
+    emailjs.init('mgZZQLZBSBI7EbaiG'); // Remplacez par votre User ID (trouvé dans votre tableau de bord EmailJS)
+</script>
+</head>
+<body>
+    <header>
+        <img src="images/logo.png" alt="Logo SmartImmo.Pro">
+    </header>
+
+    <main>
+        <div class="form-container">
+            <form id="repairForm">
+                <!-- Étape 1 -->
+                <div class="form-step active">
+                    <h2>Demande de dépannage</h2>
+                    <label for="name">Nom complet *</label>
+                    <input type="text" id="name" name="name" placeholder="Jean Dupont" required>
+
+                    <label for="email">Email *</label>
+                    <input type="email" id="email" name="email" placeholder="exemple@mail.com" required>
+
+                    <label for="phone">Téléphone *</label>
+                    <input type="tel" id="phone" name="phone" placeholder="06 12 34 56 78" required>
+                </div>
+
+                <!-- Étape 2 -->
+                <div class="form-step">
+                    <label for="address">Adresse *</label>
+                    <input type="text" id="address" name="address" placeholder="10 rue des Lilas" required>
+
+                    <label for="city">Ville *</label>
+                    <input type="text" id="city" name="city" placeholder="Paris" required>
+
+                    <label for="postalCode">Code postal *</label>
+                    <input type="text" id="postalCode" name="postalCode" placeholder="75000" required>
+                </div>
+
+                <!-- Étape 3 -->
+                <div class="form-step">
+                    <label>Type d'intervention *</label>
+                    <div class="button-group">
+    <button type="button" class="select-btn" data-value="Électricité" data-tooltip="Intervention pour problèmes électriques.">
+        <img src="images/electricity.png" alt="Électricité">
+    </button>
+    <button type="button" class="select-btn" data-value="Plomberie" data-tooltip="Intervention pour fuites d'eau ou problèmes de plomberie.">
+        <img src="images/plumbing.png" alt="Plomberie">
+    </button>
+    <button type="button" class="select-btn" data-value="Serrurerie" data-tooltip="Intervention pour serrures bloquées ou cassées.">
+        <img src="images/locksmith.png" alt="Serrurerie">
+    </button>
+    <button type="button" class="select-btn" data-value="Vitrerie" data-tooltip="Intervention pour vitres cassées ou réparation.">
+        <img src="images/glass.png" alt="Vitrerie">
+    </button>
+    <button type="button" class="select-btn" data-value="Autre" data-tooltip="Autres types d'interventions.">
+        Autre
+    </button>
+</div>
+
+                    <input type="hidden" id="type" name="type" required>
+
+                    <label>Intervention urgente ? *</label>
+                    <div class="button-group">
+                        <button type="button" class="select-btn" data-value="Oui" data-tooltip="Délai d'intervention: < 24h."> Oui</button>
+                        <button type="button" class="select-btn" data-value="Non" data-tooltip="Délai d'intervention: > 24h."> Non</button>
+                    </div>
+                    <input type="hidden" id="urgency" name="urgency" required>
+
+                    <label for="description">Description *</label>
+                    <textarea id="description" name="description" placeholder="Décrivez brièvement le problème..." required></textarea>
+                </div>
+<div class="photo-upload">
+    <label>Ajoutez des photos (facultatif) :</label>
+    <input type="file" id="photoInput" accept="image/*" multiple>
+    <div id="photoPreviewContainer" class="photo-preview-container"></div>
+</div>
+
+
+                <!-- Étape 4 -->
+                <div class="form-step">
+                    <h2>Résumé de votre demande</h2>
+                    <div class="summary">
+                        <p><strong>Nom :</strong> <span id="summaryName"></span></p>
+                        <p><strong>Email :</strong> <span id="summaryEmail"></span></p>
+                        <p><strong>Téléphone :</strong> <span id="summaryPhone"></span></p>
+                        <p><strong>Adresse :</strong> <span id="summaryAddress"></span></p>
+                        <p><strong>Type d'intervention :</strong> <span id="summaryType"></span></p>
+                        <p><strong>Urgence :</strong> <span id="summaryUrgency"></span></p>
+                        <p><strong>Description :</strong> <span id="summaryDescription"></span></p>
+                    </div>
+                    <div class="cgu-container">
+                        <input type="checkbox" id="cgu" name="cgu" required>
+                        <label for="cgu">J'accepte les conditions générales d'utilisation *</label>
+                    </div>
+                    <p class="error-message" id="cguError"></p>
+                </div>
+
+                <!-- Navigation -->
+                <div class="form-navigation">
+                    <button type="button" id="prevBtn" disabled>Précédent</button>
+                    <button type="button" id="nextBtn">Suivant</button>
+                    <button type="submit" id="submitBtn" style="display:none;">Envoyer</button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
