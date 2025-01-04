@@ -15,7 +15,7 @@ async function uploadToGitHub(file) {
 
     return new Promise((resolve, reject) => {
         reader.onload = async () => {
-            const base64Content = reader.result.split(',')[1];
+            const base64Content = reader.result(',')[1];
             const filePath = `${Date.now()}_${file.name}`; // Chemin unique pour le fichier
 
             try {
