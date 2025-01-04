@@ -1,4 +1,4 @@
-m// Génération d'un identifiant unique
+// Génération d'un identifiant unique
 const generateUniqueId = () => {
     const timestampPart = String(Date.now()).slice(-5);
     const randomPart = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
@@ -29,7 +29,7 @@ async function uploadToGitHub(file) {
                         message: `Ajout de la photo ${file.name}`,
                         content: base64Content,
                     }),
-
+            }),
                 if (response.ok) {
                     const jsonResponse = await response.json();
                     resolve(jsonResponse.content.download_url); // Lien du fichier
