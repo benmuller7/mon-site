@@ -7,22 +7,20 @@ const generateUniqueId = () => {
 // Informations GitHub
 const GITHUB_OWNER = 'benmuller7'; // Remplacez par votre nom d'utilisateur GitHub
 const GITHUB_REPO = 'Images-Depannage'; // Nom du dépôt
-const GITHUB_TOKEN = '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'; // Token GitHub avec les permissions nécessaires
 
 // Fonction pour uploader un fichier sur GitHub
-async function uploadToGitHub(file) {
+async function uploadToPublicRepo(file) {
     const reader = new FileReader();
 
     return new Promise((resolve, reject) => {
         reader.onload = async () => {
             const base64Content = reader.result.split(',')[1];
-            const filePath = `uploads/${Date.now()}_${file.name}`; // Crée un chemin unique pour chaque fichier
+            const filePath = `uploads/${Date.now()}_${file.name}`; // Chemin unique
 
             try {
-                const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`, {
+                const response = await fetch(`https://api.github.com/repos/benmuller/Image-Depannage/contents/${filePath}`, {
                     method: 'PUT',
                     headers: {
-                        Authorization: `Bearer ${GITHUB_TOKEN}`,
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
@@ -31,13 +29,16 @@ async function uploadToGitHub(file) {
                     }),
                 });
 
-                if (response.ok) {
-                    const jsonResponse = await response.json();
-                    resolve(jsonResponse.content.download_url); // Retourne le lien direct vers le fichier
-                } else {
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('Erreur GitHub :', errorData);
                     reject(`Erreur lors de l'upload : ${response.statusText}`);
+                } else {
+                    const responseData = await response.json();
+                    resolve(responseData.content.download_url); // Lien direct vers l'image
                 }
             } catch (error) {
+                console.error('Erreur réseau :', error);
                 reject(error);
             }
         };
@@ -46,6 +47,7 @@ async function uploadToGitHub(file) {
         reader.readAsDataURL(file); // Convertit le fichier en Base64
     });
 }
+
 
 // Sélection des étapes
 const steps = document.querySelectorAll('.form-step');
@@ -209,6 +211,20 @@ photoInput.addEventListener('change', handlePhotoUpload);
 document.getElementById('repairForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
+  const files = document.getElementById('photoInput').files;
+    const photoLinks = []; // Stocke les liens des photos uploadées
+
+    for (const file of files) {
+        try {
+            const link = await uploadToPublicRepo(file);
+            photoLinks.push(link);
+        } catch (error) {
+            console.error('Erreur lors de l'upload d'une photo :', error);
+        }
+    }
+
+    console.log('Liens des photos uploadées :', photoLinks);
+    
     const cguChecked = document.getElementById('cgu').checked;
     if (!cguChecked) {
         document.getElementById('cguError').textContent = 'Vous devez accepter les CGU.';
