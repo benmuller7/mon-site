@@ -15,11 +15,11 @@ async function uploadToGitHub(file) {
 
     return new Promise((resolve, reject) => {
         reader.onload = async () => {
-            const base64Content = reader.result(',')[1];
-            const filePath = `${Date.now()}_${file.name}`; // Chemin unique pour le fichier
+            const base64Content = reader.result.split(',')[1];
+            const filePath = `uploads/${Date.now()}_${file.name}`; // Chemin unique pour le fichier
 
             try {
-                const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/uploads/${filePath}`, {
+                const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`, {
                     method: 'PUT',
                     headers: {
                         Authorization: `Bearer ${GITHUB_TOKEN}`,
