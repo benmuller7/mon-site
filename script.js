@@ -1,161 +1,135 @@
 /*****************************************
- * script.js
+ * script.js — version stable & complète (corrigée)
  *****************************************/
 
-/**
- * Génère un ID unique basé sur l'heure actuelle et un nombre aléatoire.
- */
-const generateUniqueId = () => {
-  return `REQ-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+/** Génère un ID unique format : DEP-YYMMDDHHMM-RR */
+const generateUniqueId = (postalCode) => {
+  const dep = postalCode.slice(0, 2); // département
+  const now = new Date();
+
+  const YY = String(now.getFullYear()).slice(-2);
+  const MM = String(now.getMonth() + 1).padStart(2, "0");
+  const DD = String(now.getDate()).padStart(2, "0");
+  const HH = String(now.getHours()).padStart(2, "0");
+  const MI = String(now.getMinutes()).padStart(2, "0");
+
+  const rand = Math.floor(Math.random() * 90 + 10); // 10–99
+
+  return `${dep}-${YY}${MM}${DD}${HH}${MI}-${rand}`;
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-  // Récupère toutes les "étapes" du formulaire
-  const steps = document.querySelectorAll('.form-step');
-  let currentStep = 0;
+/** Départements autorisés */
+const ALLOWED_DEPARTMENTS = ['08', '51'];
 
-  // Barre d’avancement (les pastilles)
+document.addEventListener('DOMContentLoaded', () => {
+  /* ========= EmailJS ========= */
+  if (window.emailjs && typeof emailjs.init === 'function') {
+    emailjs.init('mgZZQLZBSBI7EbaiG');
+  }
+
+  /* ========= Références ========= */
+  const form = document.getElementById('repairForm');
+  const steps = document.querySelectorAll('.form-step');
   const wizardSteps = document.querySelectorAll('.wizard-step');
 
-  // Écouteurs de clic sur les pastilles
+  const submitBtn = document.getElementById('submitBtn');
+  const prevBtn   = document.getElementById('prevBtn');
+  const nextBtn   = document.getElementById('nextBtn');
+  const cguCheckbox = document.getElementById('acceptCgu');
+
+  const messageContainer = document.getElementById('messageContainer');
+
+  const postalCodeInput = document.getElementById('postalCode');
+  const cityInput = document.getElementById('city');
+
+  // Suggestions ville (conteneur sous le champ CP)
+  const citySuggestionsContainer = document.createElement('div');
+  citySuggestionsContainer.classList.add('city-suggestions');
+  citySuggestionsContainer.setAttribute('role', 'listbox');
+  citySuggestionsContainer.style.display = 'none';
+  postalCodeInput.parentElement.appendChild(citySuggestionsContainer);
+
+  // Popup “hors zone” (si présent)
+  const popupOverlay  = document.getElementById('popup-departement');
+  const popupContent  = popupOverlay?.querySelector('.popup-content') || null;
+  const popupSendBtn  = document.getElementById('popupSendBtn');
+  const popupCloseBtn = document.getElementById('popupCloseBtn');
+  const waitlistEmail = document.getElementById('waitlistEmail');
+
+  let currentStep = 0;
+
+  /* ========= Helpers ========= */
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isAllowedPostalCode = (val) => /^\d{5}$/.test(val) && ALLOWED_DEPARTMENTS.includes(val.slice(0,2));
+
+  const showMessage = (message, type = 'error', timeout = 5000) => {
+    if (!messageContainer) return;
+    messageContainer.textContent = message;
+    messageContainer.className = `message ${type}`;
+    messageContainer.style.display = 'block';
+    if (timeout > 0) {
+      clearTimeout(showMessage._t);
+      showMessage._t = setTimeout(() => (messageContainer.style.display = 'none'), timeout);
+    }
+  };
+
+  const openPopup = () => {
+    if (!popupOverlay) {
+      showMessage("Désolé, le service n’est pas encore disponible dans votre département. Laissez votre email pour être prévenu.", 'error', 7000);
+      return;
+    }
+    popupOverlay.style.display = 'flex';
+    popupOverlay.setAttribute('aria-hidden','false');
+    setTimeout(() => waitlistEmail?.focus(), 0);
+  };
+
+  const closePopup = () => {
+    if (!popupOverlay) return;
+    popupOverlay.style.display = 'none';
+    popupOverlay.setAttribute('aria-hidden','true');
+  };
+
+  popupOverlay?.addEventListener('click', (e) => { if (e.target === popupOverlay) closePopup(); });
+  popupCloseBtn?.addEventListener('click', closePopup);
+  popupOverlay?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab' || !popupContent) return;
+    const focusables = popupContent.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])');
+    const list = [...focusables]; if (!list.length) return;
+    const first = list[0], last = list[list.length-1];
+    if (e.shiftKey && document.activeElement === first) { last.focus(); e.preventDefault(); }
+    else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); }
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && popupOverlay?.style.display === 'flex') closePopup(); });
+
+  /* ========= Wizard ========= */
   wizardSteps.forEach((stepElem, i) => {
     stepElem.addEventListener('click', () => {
-      // On autorise seulement le clic sur étapes passées (.completed) ou active
       if (stepElem.classList.contains('completed') || stepElem.classList.contains('active')) {
         currentStep = i;
-        // On relance la mise à jour globale (form + barre)
         initializeSteps();
       }
     });
   });
 
-  // Boutons de navigation
-  const submitBtn = document.getElementById('submitBtn');
-  const prevBtn = document.getElementById('prevBtn');
-  const nextBtn = document.getElementById('nextBtn');
-  const cguCheckbox = document.getElementById('acceptCgu');
-
-  // Boutons de sélection (type d'intervention, priorité, rôle, etc.)
-  const selectButtons = document.querySelectorAll('.select-btn');
-
-  // Gestion de la suggestion de ville via code postal
-  const postalCodeInput = document.getElementById('postalCode');
-  const citySuggestionsContainer = document.createElement('div');
-  citySuggestionsContainer.classList.add('city-suggestions');
-  citySuggestionsContainer.setAttribute('role', 'listbox');
-  postalCodeInput.parentElement.appendChild(citySuggestionsContainer);
-
-  // Validation d'email
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  // Affichage de messages d'erreur / succès
-  const showMessage = (message, type = 'error') => {
-    const container = document.getElementById('messageContainer');
-    container.textContent = message;
-    container.className = `message ${type}`;
-    container.style.display = 'block';
-    setTimeout(() => (container.style.display = 'none'), 5000);
-  };
-
-  // Débounce pour la suggestion de ville
-  let debounceTimeout;
-  postalCodeInput.addEventListener('input', () => {
-    clearTimeout(debounceTimeout);
-    debounceTimeout = setTimeout(async () => {
-      const postalCode = postalCodeInput.value.trim();
-      if (postalCode.length === 5 && /^[0-9]{5}$/.test(postalCode)) {
-        try {
-          const response = await fetch(
-            `https://geo.api.gouv.fr/communes?codePostal=${postalCode}&fields=nom&format=json&geometry=centre`
-          );
-          if (!response.ok) throw new Error('Erreur réseau');
-
-          const data = await response.json();
-          if (data.length > 0) {
-            citySuggestionsContainer.innerHTML =
-              '<ul>' + data.map((city) => `<li>${city.nom}</li>`).join('') + '</ul>';
-            citySuggestionsContainer.style.display = 'block';
-
-            citySuggestionsContainer.querySelectorAll('li').forEach((li) => {
-              li.addEventListener('click', () => {
-                document.getElementById('city').value = li.textContent;
-                citySuggestionsContainer.style.display = 'none';
-              });
-            });
-          } else {
-            citySuggestionsContainer.innerHTML =
-              '<p>Aucune ville trouvée pour ce code postal.</p>';
-          }
-        } catch (error) {
-          console.error('Erreur lors de la récupération des données :', error);
-          citySuggestionsContainer.innerHTML =
-            '<p>Impossible de récupérer les données des villes.</p>';
-        }
-      } else {
-        citySuggestionsContainer.style.display = 'none';
-      }
-    }, 300);
-  });
-
-  // Sélection de rôle, type, etc. via boutons
-  selectButtons.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const parent = btn.closest('.button-group');
-      const hiddenInput = parent.nextElementSibling; // input caché après .button-group
-
-      if (hiddenInput) {
-        hiddenInput.value = btn.dataset.value;
-      }
-      parent.querySelectorAll('.select-btn').forEach((b) => {
-        b.classList.remove('active');
-        b.setAttribute('aria-pressed', 'false');
-      });
-      btn.classList.add('active');
-      btn.setAttribute('aria-pressed', 'true');
-    });
-  });
-
-  // Met à jour la barre d’avancement : active / completed
-  function updateWizardStepsDisplay(currentStep) {
-    const wizardSteps = document.querySelectorAll('.wizard-step');
+  const updateWizardStepsDisplay = (iActive) => {
     wizardSteps.forEach((stepElem, i) => {
-      if (i < currentStep) {
-        stepElem.classList.add('completed');
-        stepElem.classList.remove('active');
-      } else if (i === currentStep) {
-        stepElem.classList.add('active');
-        stepElem.classList.remove('completed');
-      } else {
-        stepElem.classList.remove('active', 'completed');
-      }
+      if (i < iActive) { stepElem.classList.add('completed'); stepElem.classList.remove('active'); }
+      else if (i === iActive) { stepElem.classList.add('active'); stepElem.classList.remove('completed'); }
+      else { stepElem.classList.remove('active', 'completed'); }
     });
-  }
-
-  // Affiche/masque les .form-step et met à jour la barre
-  const initializeSteps = () => {
-    steps.forEach((step, index) => {
-      step.classList.toggle('active', index === currentStep);
-    });
-
-    prevBtn.style.display = currentStep > 0 ? 'inline-block' : 'none';
-    nextBtn.style.display = currentStep < steps.length - 1 ? 'inline-block' : 'none';
-    submitBtn.style.display = currentStep === steps.length - 1 ? 'inline-block' : 'none';
-
-    // Met à jour la barre d’avancement
-    updateWizardStepsDisplay(currentStep);
-
-    // Mise à jour du résumé si on est à la dernière étape
-    if (currentStep === steps.length - 1) {
-      updateSummary();
-    }
   };
 
-  // Mets à jour le récap final
+  const initializeSteps = () => {
+    steps.forEach((step, index) => step.classList.toggle('active', index === currentStep));
+    prevBtn.style.display   = currentStep > 0 ? 'inline-block' : 'none';
+    nextBtn.style.display   = currentStep < steps.length - 1 ? 'inline-block' : 'none';
+    submitBtn.style.display = currentStep === steps.length - 1 ? 'inline-block' : 'none';
+    updateWizardStepsDisplay(currentStep);
+    if (currentStep === steps.length - 1) updateSummary();
+  };
+
   const updateSummary = () => {
-    const summaryFields = {
+    const map = {
       summaryRole: 'role',
       summaryName: 'name',
       summaryEmail: 'email',
@@ -165,183 +139,323 @@ document.addEventListener('DOMContentLoaded', () => {
       summaryDescription: 'description',
       summaryPriority: 'priority',
     };
-
-    for (const [summaryId, fieldId] of Object.entries(summaryFields)) {
-      const inputElement = document.getElementById(fieldId);
-      const summaryElement = document.getElementById(summaryId);
-      if (!inputElement || !summaryElement) continue;
-      const value = inputElement.value.trim() || 'Non renseigné';
-      summaryElement.textContent = value;
-    }
+    Object.entries(map).forEach(([sumId, fieldId]) => {
+      const inputEl = document.getElementById(fieldId);
+      const sumEl = document.getElementById(sumId);
+      if (inputEl && sumEl) sumEl.textContent = (inputEl.value || '').trim() || 'Non renseigné';
+    });
   };
 
-  // Vérifie les champs obligatoires de l’étape courante
+  /* ========= Sélecteurs (rôle / type / priorité) ========= */
+  // Délégation => fonctionne même après reset/DOM dynamique
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.select-btn');
+    if (!btn) return;
+    const group = btn.closest('.button-group');
+    if (!group) return;
+
+    group.querySelectorAll('.select-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    // input[type=hidden] situé juste après le .button-group
+    let hidden = group.nextElementSibling;
+    if (hidden && hidden.classList?.contains('field-error')) hidden = hidden.nextElementSibling;
+    if (hidden && hidden.type === 'hidden') hidden.value = btn.dataset.value || '';
+
+    // Nettoie les erreurs
+    const err = group.nextElementSibling?.classList?.contains('field-error') ? group.nextElementSibling : null;
+    group.classList.remove('invalid');
+    if (err) err.hidden = true;
+  });
+
+  /* ========= Suggestions de villes ========= */
+  let debounceTimeout, abortCtrl;
+  const fetchWithTimeout = (url, ms=8000) =>
+    Promise.race([
+      fetch(url, { signal: abortCtrl?.signal }),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), ms))
+    ]);
+
+  const renderCityList = (list) => {
+    if (!Array.isArray(list) || !list.length) {
+      citySuggestionsContainer.innerHTML = '<p>Aucune ville trouvée pour ce code postal.</p>';
+      citySuggestionsContainer.style.display = 'block';
+      return;
+    }
+    citySuggestionsContainer.innerHTML =
+      '<ul>' + list.map(c => `<li tabindex="0">${c.nom}</li>`).join('') + '</ul>';
+    citySuggestionsContainer.style.display = 'block';
+
+    citySuggestionsContainer.querySelectorAll('li').forEach((li) => {
+      const pick = () => { cityInput.value = li.textContent; citySuggestionsContainer.style.display = 'none'; };
+      li.addEventListener('click', pick);
+      li.addEventListener('keydown', (e) => { if (e.key === 'Enter') pick(); });
+    });
+  };
+
+  postalCodeInput.addEventListener('input', () => {
+    postalCodeInput.classList.remove('invalid');
+    clearTimeout(debounceTimeout);
+    if (abortCtrl) abortCtrl.abort();
+    abortCtrl = new AbortController();
+
+    debounceTimeout = setTimeout(async () => {
+      const cp = postalCodeInput.value.trim();
+      if (!/^\d{5}$/.test(cp)) { citySuggestionsContainer.style.display = 'none'; return; }
+
+      try {
+        const res = await fetchWithTimeout(
+          `https://geo.api.gouv.fr/communes?codePostal=${cp}&fields=nom&format=json&geometry=centre`,
+          8000
+        );
+        if (!res.ok) throw new Error('Erreur réseau');
+        const data = await res.json();
+        renderCityList(data || []);
+      } catch (e) {
+        console.error('Erreur villes :', e);
+        citySuggestionsContainer.innerHTML = '<p>Impossible de récupérer les données des villes.</p>';
+        citySuggestionsContainer.style.display = 'block';
+      }
+    }, 300);
+  });
+
+  // Popup au blur si CP valide mais hors zone
+  postalCodeInput.addEventListener('blur', () => {
+    const v = postalCodeInput.value.trim();
+    if (/^\d{5}$/.test(v) && !isAllowedPostalCode(v)) openPopup();
+  });
+
+  /* ========= Validation par étape ========= */
   const validateStep = () => {
-    const currentStepElement = steps[currentStep];
-    const inputs = currentStepElement.querySelectorAll('input[required], textarea[required]');
+    const stepEl = steps[currentStep];
     let isValid = true;
 
-    inputs.forEach((input) => {
-      if (input.type === 'email' && !validateEmail(input.value.trim())) {
-        input.classList.add('invalid');
-        isValid = false;
-      } else if (!input.value.trim()) {
-        input.classList.add('invalid');
-        isValid = false;
-      } else {
-        input.classList.remove('invalid');
+    // Visibles (hors hidden)
+    stepEl.querySelectorAll('input[required]:not([type="hidden"]), textarea[required]').forEach((input) => {
+      const val = (input.value || '').trim();
+
+      if (input.type === 'email') {
+        const ok = validateEmail(val);
+        input.classList.toggle('invalid', !ok);
+        if (!ok) isValid = false;
+        return;
       }
+      if (input.id === 'postalCode') {
+        const ok = isAllowedPostalCode(val);
+        input.classList.toggle('invalid', !ok);
+        if (!ok) isValid = false;
+        return;
+      }
+
+      const ok = !!val && (!input.pattern || new RegExp(input.pattern).test(val));
+      input.classList.toggle('invalid', !ok);
+      if (!ok) isValid = false;
     });
+
+    // Cachés (role/type/priority)
+    stepEl.querySelectorAll('input[type="hidden"][required]').forEach((hidden) => {
+      const ok = !!(hidden.value || '').trim();
+      let group = hidden.previousElementSibling;
+      if (group && !group.classList?.contains('button-group') && group.classList?.contains('field-error')) {
+        group = group.previousElementSibling;
+      }
+      if (group?.classList?.contains('button-group')) {
+        group.classList.toggle('invalid', !ok);
+        const err = group.nextElementSibling?.classList?.contains('field-error') ? group.nextElementSibling : null;
+        if (err) err.hidden = ok;
+      }
+      if (!ok) isValid = false;
+    });
+
     return isValid;
   };
 
-  // Retire la classe .invalid quand on modifie le champ
-  document.querySelectorAll('input, textarea').forEach((input) => {
-    input.addEventListener('input', () => {
-      input.classList.remove('invalid');
-    });
-  });
+  // Nettoyage invalid en saisie
+  document.querySelectorAll('input, textarea').forEach((el) =>
+    el.addEventListener('input', () => el.classList.remove('invalid'))
+  );
 
-  // Navigation "Précédent"
+  /* ========= Navigation ========= */
   prevBtn.addEventListener('click', () => {
-    if (currentStep > 0) {
-      currentStep--;
-      initializeSteps();
-    }
+    if (currentStep > 0) { currentStep--; initializeSteps(); }
   });
 
-  // Navigation "Suivant"
   nextBtn.addEventListener('click', () => {
-    if (validateStep()) {
-      if (currentStep < steps.length - 1) {
-        currentStep++;
-        initializeSteps();
+    if (!validateStep()) {
+      if (currentStep === 1) {
+        const v = postalCodeInput.value.trim();
+        if (/^\d{5}$/.test(v) && !isAllowedPostalCode(v)) openPopup();
       }
-    } else {
       showMessage('Veuillez remplir tous les champs obligatoires correctement avant de continuer.', 'error');
+      return;
     }
+
+    if (currentStep === 1) {
+      const v = postalCodeInput.value.trim();
+      if (!/^\d{5}$/.test(v)) { showMessage('Veuillez saisir un code postal valide (5 chiffres).', 'error'); return; }
+      if (!isAllowedPostalCode(v)) { openPopup(); return; }
+    }
+
+    if (currentStep < steps.length - 1) { currentStep++; initializeSteps(); }
   });
 
-  // Réinitialise le formulaire
-  const resetForm = () => {
-    document.getElementById('repairForm').reset();
-    const confirmationStep = document.querySelector('.form-step.confirmation');
-    if (confirmationStep) {
-      confirmationStep.remove();
+  /* ========= Spinner & état d’envoi ========= */
+  const setSubmittingState = (isSubmitting) => {
+    if (!submitBtn) return;
+    if (isSubmitting) {
+      submitBtn.dataset.originalText = submitBtn.textContent;
+      submitBtn.textContent = 'Envoi en cours…';
+      submitBtn.classList.add('loading');
+      submitBtn.disabled = true;
+    } else {
+      submitBtn.textContent = submitBtn.dataset.originalText || 'Soumettre la demande';
+      submitBtn.classList.remove('loading');
+      submitBtn.disabled = false;
     }
-    const summaryElements = document.querySelectorAll('[id^="summary"]');
-    summaryElements.forEach((el) => {
-      el.textContent = 'Non renseigné';
-    });
+  };
+
+  const resetInteractiveState = () => {
+    document.querySelectorAll('button, input, textarea, select').forEach(el => el.disabled = false);
+    document.querySelectorAll('.loading').forEach(el => el.classList.remove('loading'));
+    if (submitBtn) {
+      submitBtn.textContent = 'Soumettre la demande';
+      submitBtn.removeAttribute('data-original-text');
+      submitBtn.disabled = false;
+    }
+  };
+
+  /* ========= Confirmation & reset ========= */
+  const resetForm = () => {
+    // Reset natif
+    form.reset();
+
+    // Nettoyage UI
+    document.querySelectorAll('.button-group').forEach(g => g.classList.remove('invalid'));
+    document.querySelectorAll('.select-btn.active').forEach(b => b.classList.remove('active'));
+    citySuggestionsContainer.style.display = 'none';
+
+    // Vide explicitement les hidden
+    ['role','type','priority'].forEach(id => { const h = document.getElementById(id); if (h) h.value = ''; });
+
+    // Supprime l’étape confirmation si présente
+    document.querySelector('.form-step.confirmation')?.remove();
+
+    // Récap & messages
+    document.querySelectorAll('[id^="summary"]').forEach((el) => el.textContent = 'Non renseigné');
+    if (messageContainer) { messageContainer.style.display = 'none'; messageContainer.textContent = ''; }
+
+    // État interactif
+    resetInteractiveState();
+    setSubmittingState(false);
+
+    // Retour étape 0
     currentStep = 0;
     initializeSteps();
   };
 
-  // Affiche une page "Confirmation" quand le formulaire est soumis
   const showConfirmationMessage = (requestId) => {
     const confirmationStep = document.createElement('div');
     confirmationStep.classList.add('form-step', 'confirmation');
-
-    // Ici, on affiche requestId pour que ce soit le même numéro qu'on a généré
     confirmationStep.innerHTML = `
       <h2>Confirmation</h2>
       <p>Votre demande a été enregistrée avec succès.</p>
       <p>Numéro unique : <strong>${requestId}</strong></p>
       <p>Nous vous contacterons prochainement.</p>
-      <button id="newRequestBtn" class="action-btn">Faire une autre demande</button>
+      <div class="form-navigation">
+        <button type="button" id="newRequestBtn" class="nav-btn nav-next">
+          Nouvelle demande
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/>
+          </svg>
+        </button>
+      </div>
     `;
-
     document.querySelector('.form-container').appendChild(confirmationStep);
 
-    // Masquer les autres étapes
-    steps.forEach((step) => step.classList.remove('active'));
+    steps.forEach((s) => s.classList.remove('active'));
     confirmationStep.classList.add('active');
 
-    // Masquer les boutons
     prevBtn.style.display = 'none';
     nextBtn.style.display = 'none';
     submitBtn.style.display = 'none';
 
-    // Force l'étape 4 à être cochée
-    currentStep = steps.length; 
-    updateWizardStepsDisplay(currentStep);
+    // Barre : toutes cochées
+    updateWizardStepsDisplay(wizardSteps.length);
 
     document.getElementById('newRequestBtn').addEventListener('click', resetForm);
   };
 
-  // Soumission du formulaire (EmailJS)
-  document.getElementById('repairForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-
-    if (!cguCheckbox.checked) {
-      showMessage('Vous devez accepter les Conditions Générales d\'Utilisation avant de soumettre le formulaire.', 'error');
-      return;
-    }
-
-    // On génère l'ID unique
-    const requestId = generateUniqueId();
-
-    // Récupération des données
-    const formData = {
-      name: document.getElementById('name').value,
-      email: document.getElementById('email').value,
-      phone: document.getElementById('phone').value,
-      address: document.getElementById('address').value,
-      city: document.getElementById('city').value,
-      postalCode: document.getElementById('postalCode').value,
-      addressComplement: document.getElementById('addressComplement').value || 'Non renseigné',
-      role: document.getElementById('role').value,
-      type: document.getElementById('type').value,
-      description: document.getElementById('description').value,
-      priority: document.getElementById('priority').value
-    };
-
+  /* ========= Popup : liste d’attente ========= */
+  popupSendBtn?.addEventListener('click', async () => {
+    const email = (waitlistEmail?.value || '').trim();
+    if (!validateEmail(email)) { alert('Veuillez saisir un email valide.'); return; }
     try {
-      // Initialise EmailJS
-      emailjs.init('mgZZQLZBSBI7EbaiG');
-
-      // 1er envoi (vers "ben@smartimmo.pro", par exemple)
-      await emailjs.send('service_uzzmtzc', 'template_bes6bcg', {
-        to_email: 'ben@smartimmo.pro',  // ou formData.email
-        from_name: formData.name,
-        from_email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        city: formData.city,
-        postalCode: formData.postalCode,
-        addressComplement: formData.addressComplement,
-        role: formData.role,
-        type: formData.type,
-        description: formData.description,
-        priority: formData.priority,
-        request_id: requestId
-      });
-
-      // 2e envoi (vers le client)
-      await emailjs.send('service_uzzmtzc', 'template_dtvz9jh', {
-        to_email: formData.email,
-        from_name: formData.name,
-        from_email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        city: formData.city,
-        postalCode: formData.postalCode,
-        addressComplement: formData.addressComplement,
-        role: formData.role,
-        type: formData.type,
-        description: formData.description,
-        priority: formData.priority,
-        request_id: requestId
-      });
-
-      // Afficher la confirmation
-      showConfirmationMessage(requestId);
-    } catch (error) {
-      console.error('Erreur lors de l\'envoi :', error);
-      showMessage('Une erreur est survenue. Veuillez réessayer.', 'error');
+      if (window.emailjs?.send) {
+        await emailjs.send('service_uzzmtzc', 'template_waitlist', {
+          to_email: 'ben@smartimmo.pro',
+          prospect_email: email,
+          postal_code: (postalCodeInput.value || '').trim()
+        });
+      }
+      alert('Merci ! Nous vous préviendrons dès que le service sera disponible.');
+      closePopup(); if (waitlistEmail) waitlistEmail.value = '';
+    } catch (err) {
+      console.error('Erreur waitlist :', err);
+      alert("Impossible d'enregistrer votre email pour le moment. Réessayez plus tard.");
     }
   });
 
-  // Initialisation globale
+  /* ========= Soumission ========= */
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    if (!validateStep()) {
+      showMessage('Veuillez remplir tous les champs obligatoires correctement avant de soumettre.', 'error');
+      return;
+    }
+    if (!cguCheckbox?.checked) {
+      showMessage('Vous devez accepter les Conditions Générales d’Utilisation avant de soumettre le formulaire.', 'error');
+      return;
+    }
+
+    const cp = (postalCodeInput.value || '').trim();
+    if (!/^\d{5}$/.test(cp) || !isAllowedPostalCode(cp)) { openPopup(); return; }
+
+    try {
+      setSubmittingState(true);
+
+      const requestId = generateUniqueId(cp); // ✅ CORRECTION : on passe bien le CP ici
+
+      const data = {
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        address: document.getElementById('address').value,
+        city: cityInput.value,
+        postalCode: cp,
+        addressComplement: document.getElementById('addressComplement').value || 'Non renseigné',
+        role: document.getElementById('role').value,
+        type: document.getElementById('type').value,
+        description: document.getElementById('description').value,
+        priority: document.getElementById('priority').value,
+        request_id: requestId
+      };
+
+      if (!window.emailjs || !emailjs.send) throw new Error('EmailJS non chargé');
+
+      // Envoi interne
+      await emailjs.send('service_uzzmtzc', 'template_bes6bcg', { to_email: 'ben@smartimmo.pro', ...data });
+      // Accusé client
+      await emailjs.send('service_uzzmtzc', 'template_dtvz9jh', { to_email: data.email, ...data });
+
+      showConfirmationMessage(requestId);
+    } catch (err) {
+      console.error('Erreur lors de l’envoi :', err);
+      showMessage('Une erreur est survenue lors de l’envoi. Veuillez réessayer.', 'error');
+      setSubmittingState(false);
+    }
+  });
+
+  /* GO */
   initializeSteps();
 });

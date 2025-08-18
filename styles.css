@@ -1,408 +1,197 @@
-/* Styles globaux */
-body {
-    font-family: 'Arial', sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f4f4f9;
-    box-sizing: border-box;
+:root {
+  --primary-color: #4A5BBE;
+  --secondary-color: #364CA3;
+
+  --submit-color: #39c67a;
+  --submit-color-hover: #2fb36d;
+
+  --error-color: #cc0000;
+  --success-color: #008000;
+  --background-color: #f4f4f9;
 }
 
-*, *::before, *::after {
-    box-sizing: inherit;
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: var(--background-color);
 }
 
 header {
-    background-color: #fff;
-    padding: 10px;
-    text-align: center;
-    border-bottom: 2px solid #ddd;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  background: #fff;
+  padding: 10px;
+  text-align: center;
+  border-bottom: 2px solid #ddd;
+  box-shadow: 0 2px 5px rgba(0,0,0,.1);
 }
-
-header img {
-    max-width: 150px;
-    display: block;
-    margin: 0 auto;
-}
+header img { max-width: 180px; display: inline-block; margin: 0 auto; height: auto; }
 
 main {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    min-height: 100vh;
-    padding: 20px;
-    background-color: #f4f4f9;
+  display: flex; justify-content: center; align-items: flex-start;
+  min-height: 100vh; padding: 20px; background: var(--background-color);
 }
 
 .form-container {
-    width: 100%;
-    max-width: 600px;
-    background: #fff;
-    padding: 20px;
-    border-radius: 20px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  width: 100%; max-width: 600px; background: #fff;
+  padding: 20px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,.1);
 }
 
-h2 {
-    font-size: 1.5em;
-    margin-bottom: 15px;
-    color: #4A5BBE;
-    text-align: center;
-}
-
-label {
-    display: block;
-    font-weight: bold;
-    margin: 5px 0 5px;
-    color: #4A5BBE;
-}
+h2 { font-size: 1.5em; margin: 0 0 15px; color: var(--primary-color); text-align: center; }
+label { display: block; font-weight: bold; margin: 5px 0; color: var(--primary-color); }
 
 input, textarea {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 5px;
-    border: 1px solid #ccc;
-    border-radius: 20px;
-    font-size: 1em;
-    background-color: #f9f9f9;
+  width: 100%; padding: 10px; margin-bottom: 5px;
+  border: 1px solid #ccc; border-radius: 20px; font-size: 1em; background: #f9f9f9;
+}
+textarea { resize: vertical; height: 100px; }
+input:focus, textarea:focus, button:focus, .select-btn:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
 }
 
-textarea {
-    resize: vertical;
-    height: 100px;
-      margin-bottom: 5px;
-}
-:root {
-    --primary-color: #4A5BBE;
-    --secondary-color: #364CA3;
-    --error-color: #cc0000;
-    --success-color: #008000;
-    --background-color: #f4f4f9;
-}
-
-body {
-    background-color: var(--background-color);
-}
-
-.select-btn.active, button {
-    background-color: var(--primary-color);
-}
-
+/* Sélect buttons */
 .button-group {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 5px;
+  display: flex; flex-wrap: nowrap; gap: 10px; margin-bottom: 5px;
 }
-
 .select-btn {
-    flex: 1;
-    padding: 10px;
-    border: 1px solid #ccc;
-    background-color: #f9f9f9;
-    cursor: pointer;
-    text-align: center;
-    font-weight: bold;
-    color: #4A5BBE;
-    border-radius: 40px;
-    transition: background-color 0.3s ease, color 0.3s ease;
+  flex: 1 1 0; min-width: 0;
+  padding: 10px; border: 1px solid #ccc; border-radius: 40px;
+  background: #f9f9f9; color: var(--primary-color);
+  font-weight: bold; text-align: center; cursor: pointer;
+  transition: background-color .3s ease, color .3s ease, border-color .3s ease;
 }
-
+.select-btn svg, .select-btn svg * {
+  fill: var(--primary-color);
+  transition: fill .2s ease;
+}
 .select-btn.active {
-    background-color: #4A5BBE;
-    color: white;
+  background: var(--primary-color); color: #fff;
 }
-
-button {
-    width: 100%;
-    padding: 10px;
-    background-color: #4A5BBE;
-    color: #fff;
-    border: none;
-    border-radius: 40px;
-    cursor: pointer;
-    font-size: 1em;
-    transition: background-color 0.3s ease;
-    margin-bottom: 2px; /* Espace entre les boutons */
-}
-
-button:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-}
-
-button:hover:not(:disabled) {
-    background-color: #364CA3;
-}
-
-.form-step {
-    display: none;
-    opacity: 0;
-    transform: translateX(-20px);
-    transition: opacity 0.3s ease, transform 0.3s ease;
-}
-input.invalid, textarea.invalid {
-    border-color: #cc0000;
-    background-color: #ffe6e6;
-}
-
-.form-step.active {
-    display: block;
-    opacity: 1;
-    transform: translateX(0);
-}
-.form-container label {
-    margin-bottom: 15px;
-}
-.form-navigation button {
-    margin: 10px 0;
-}
-.form-step {
-    opacity: 0;
-    transform: translateX(-30px);
-    transition: opacity 0.4s ease, transform 0.4s ease;
-}
-.form-step.active {
-    opacity: 1;
-    transform: translateX(0);
-}
-input:focus, button:focus, .select-btn:focus {
-    outline: 2px solid #4A5BBE;
-    outline-offset: 2px;
-}
-
-label[for="accept"] {
-    display: flex;
-    align-items: center;
-    font-size: 0.8em;
-    color: #4A5BBE;
-    gap: 8px;
-}
-
-label[for="acceptCgu"] input {
-    margin: 0;
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-}
-
-label[for="acceptCgu"] input:checked {
-    background-color: #4A5BBE;
-    border-color: #4A5BBE;
-}
-
-.message {
-    margin-top: 20px;
-    padding: 10px;
-    border-radius: 10px;
-    font-size: 0.9em;
-    display: none;
-  margin-bottom: 10px;
-}
-
-.message.error {
-    background-color: #ffe6e6;
-    color: #cc0000;
-}
-
-.message.success {
-    background-color: #e6ffed;
-    color: #008000;
-}
-
-/* Ajout d'une suggestion de ville */
-.city-suggestions {
-    margin-top: -10px;
-    margin-bottom: 20px;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    background-color: #fff;
-    color: #4A5BBE;
-    font-size: 0.9em;
-}
-
-.city-suggestions ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.city-suggestions ul li {
-    padding: 5px;
-    border-bottom: 1px solid #eee;
-}
-.city-suggestions ul li:focus {
-    outline: 2px solid var(--primary-color);
-    background-color: #e6f0ff;
-}
-
-.city-suggestions ul li:last-child {
-    border-bottom: none;
-}
-
-.city-suggestions ul li:hover {
-    background-color: #f0f0f9;
-    cursor: pointer;
-}
-.form-step {
-    margin-bottom: 30px;
-}
-
-.form-step {
-    opacity: 0;
-    transform: translateX(-30px);
-    transition: opacity 0.5s ease, transform 0.5s ease;
-}
-.form-step.active {
-    opacity: 1;
-    transform: translateX(0);
-}
+.select-btn.active svg, .select-btn.active svg * { fill: #fff !important; }
 .select-btn:hover, .select-btn:focus {
-    background-color: var(--secondary-color);
-    color: white;
-    outline: 2px solid var(--primary-color);
+  background: var(--secondary-color); color:#fff;
 }
-.select-btn:hover svg {
-    fill: #FFFFFF;
-}
-.select-btn.active svg {
-    fill: #FFFFFF;
-}
-@media screen and (max-width: 768px) {
-    .select-btn {
-        font-size: 0.9em;
-        padding: 8px;
-    }
-}
+.select-btn:hover svg, .select-btn:focus svg,
+.select-btn:hover svg *, .select-btn:focus svg * { fill: #fff; }
 
-@media screen and (max-width: 480px) {
-    .select-btn {
-        font-size: 0.8em;
-        padding: 6px;
-    }
-}
-@media screen and (max-width: 768px) {
-    .select-btn {
-        font-size: 0.9em;
-        padding: 8px;
-    }
-}
+.button-group.invalid .select-btn { border-color: var(--error-color); background: #ffe6e6; }
+.field-error { color: var(--error-color); font-size: .85rem; margin: 4px 2px 10px; }
 
-@media screen and (max-width: 480px) {
-    .select-btn {
-        font-size: 0.8em;
-        padding: 6px;
-    }
+/* Étapes */
+.form-step {
+  display: none; opacity: 0; transform: translateX(-20px);
+  transition: opacity .3s, transform .3s; margin-bottom: 30px;
 }
-/* Surligne uniquement le bouton Précédent */
-#prevBtn {
-  background-color: #eeeeee; /* gris très clair */
-  color: #ffffff; /* texte en blanc */
-  border: none;   /* si vous voulez enlever la bordure */
-}
+.form-step.active { display: block; opacity: 1; transform: translateX(0); }
+input.invalid, textarea.invalid { border-color: var(--error-color); background: #ffe6e6; }
 
-/* Au survol, on le fonce un peu */
-#prevBtn:hover:not(:disabled) {
-  background-color: #dcdcdc; /* gris un peu plus foncé */
+/* Messages */
+.message { margin-top: 10px; padding: 10px; border-radius: 10px; font-size: .9em; display: none; margin-bottom: 10px; }
+.message.error { background: #ffe6e6; color: var(--error-color); }
+.message.success { background: #e6ffed; color: var(--success-color); }
+
+
+/* ========== Boutons d’action (nav) ========== */
+.form-navigation {
+  display: flex; align-items: center; gap: 12px; margin-top: 8px;
 }
-/* --- Barre d'avancement ultra-compacte --- */
-.wizard-steps {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px; /* ou ajuster */
-}
-.wizard-line {
-  position: absolute;
-  top: 35%;
-  left: 20px;
-  right: 20px;
-  height: 1px;
-  background-color: #4A5BBE; /* Couleur de ta charte */
-  z-index: 1;
-}
-.wizard-step {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.wizard-circle {
-  width: 25px;
-  height: 25px;
-  border-radius: 50%;
-  background-color: #fff; 
-  border: 2px solid #4A5BBE; 
-  display: flex;
-  align-items: center;
+.nav-btn {
+  display: inline-flex;
+  align-items: center;       /* Centre verticalement texte + icône */
   justify-content: center;
-  color: #4A5BBE;
-  font-size: 0.7rem;
-  font-weight: bold;
-  transition: 0.3s;
-  position: relative;
-}
-.wizard-label {
-  margin-top: 2px;
-  font-size: 0.6rem;
-  color: #4A5BBE;
-}
-/* Étapes terminées => cercle bleu + coche */
-.wizard-step.completed .wizard-circle {
-  background-color: #4A5BBE;
-  border-color: #4A5BBE;
-  color: transparent; /* masque le chiffre */
-  cursor: pointer;    /* clic autorisé */
-}
-.wizard-step.completed .wizard-circle::after {
-  content: "\2713";               /* Le code unicode U+2713 */
-  font-family: "Arial", sans-serif; /* Force une police standard */
-  position: absolute;
-  font-size: 1rem;
-  color: #fff;                    /* Couleur blanche */
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
+  gap: 8px;
 
-/* Étape active => cercle bleu + double contour (anneau) */
-.wizard-step.active .wizard-circle {
-  background-color: #4A5BBE;
-  color: #fff;
-  border-color: #fff;
-  box-shadow: 0 0 0 2px #4A5BBE; 
-  cursor: pointer; /* clic possible pour revenir */
+  border: none; cursor: pointer; color: #fff; font-size: 1rem;
+  line-height: 1;            /* Empêche le texte de flotter */
+  vertical-align: middle;
+  padding: 12px 16px; border-radius: 40px;
+  transition: background-color .25s ease, opacity .2s ease;
 }
-/* Étapes futures => pas de clic (ni completed ni active) */
-.wizard-step:not(.completed):not(.active) .wizard-circle {
-  cursor: default;
+.nav-btn svg {
+  width: 1em; height: 1em;
+  flex-shrink: 0;
+  vertical-align: middle;    /* Aligne l’icône avec le texte */
 }
-/* Conteneur en flex, pour garder la case et le texte sur la même ligne */
-.cgu-container {
-  display: flex;
-  align-items: center;   /* aligne verticalement la checkbox et le texte */
-  gap: 6px;             /* un petit espace entre la case et le texte */
-  margin-bottom: 20px;  /* espace en bas si tu veux */
-}
+.nav-btn:disabled { opacity: .75; cursor: not-allowed; }
 
-/* Ajuste éventuellement la taille de la checkbox */
-.cgu-container input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
+/* Précédent = rond gris, taille fixe */
+.nav-prev {
+  background: #eeeeee; color: #333; width: 56px; height: 56px; padding: 0; border-radius: 50%;
+  flex: 0 0 56px;
 }
+.nav-prev:hover { background: #dcdcdc; }
 
-/* Ajuste la police du label/lien si nécessaire */
-.cgu-container label {
-  font-size: 0.9rem;     /* ou ta taille habituelle */
-  color: #4A5BBE;        /* couleur pour s'accorder à ta charte */
+/* Suivant = bleu, prend la largeur dispo */
+.nav-next {
+  background: var(--primary-color); flex: 1 1 auto;
 }
+.nav-next:hover { background: var(--secondary-color); }
 
-/* Le lien peut garder sa couleur bleue, ou tu peux le personnaliser */
-.cgu-container a {
-  color: #4A5BBE;
-  text-decoration: underline; /* ou none */
+/* Soumettre = vert, prend la largeur dispo */
+.nav-submit {
+  background: var(--submit-color); flex: 1 1 auto; display: none;
 }
+.nav-submit:hover { background: var(--submit-color-hover); }
 
+/* Spinner sur le bouton Soumettre */
+#submitBtn.loading { position: relative; }
+#submitBtn.loading::after {
+  content: ""; position: absolute; width: 16px; height: 16px; right: 14px; top: 50%;
+  border: 2px solid rgba(255,255,255,.6); border-top-color: #fff; border-radius: 50%;
+  transform: translateY(-50%); animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+
+
+/* Suggestions Ville */
+.city-suggestions {
+  margin-top: -10px; margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 10px;
+  background: #fff; color: var(--primary-color); font-size: .9em;
+}
+.city-suggestions ul { list-style: none; padding: 0; margin: 0; }
+.city-suggestions li { padding: 5px; border-bottom: 1px solid #eee; cursor: pointer; }
+.city-suggestions li:last-child { border-bottom: none; }
+.city-suggestions li:hover { background: #f0f0f9; }
+
+/* Barre d’avancement */
+.wizard-steps { position: relative; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.wizard-line { position: absolute; top: 35%; left: 20px; right: 20px; height: 1px; background: var(--primary-color); z-index: 1; }
+.wizard-step { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; }
+.wizard-circle {
+  width: 25px; height: 25px; border-radius: 50%; background: #fff; border: 2px solid var(--primary-color);
+  display:flex; align-items:center; justify-content:center; color: var(--primary-color);
+  font-size:.7rem; font-weight:700; transition:.3s; position: relative;
+}
+.wizard-label { margin-top: 2px; font-size: .6rem; color: var(--primary-color); }
+.wizard-step.completed .wizard-circle { background: var(--primary-color); border-color: var(--primary-color); color: transparent; cursor: pointer; }
+.wizard-step.completed .wizard-circle::after { content:"\2713"; position:absolute; color:#fff; font-size:1rem; top:50%; left:50%; transform:translate(-50%,-50%); }
+.wizard-step.active .wizard-circle { background: var(--primary-color); color:#fff; border-color:#fff; box-shadow: 0 0 0 2px var(--primary-color); cursor:pointer; }
+
+/* CGU */
+.cgu-container { display:flex; align-items:center; gap:6px; margin-bottom:20px; }
+.cgu-container input[type="checkbox"] { width:16px; height:16px; cursor:pointer; }
+.cgu-container a { color: var(--primary-color); text-decoration: underline; }
+
+/* Popup hors zone */
+.popup-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; justify-content: center; align-items: center; z-index: 9999; }
+.popup-content { background: #fff; padding: 20px; border-radius: 12px; max-width: 420px; width: 90%; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,.2); }
+.popup-content h3 { margin-top: 0; color: var(--primary-color); }
+.popup-content input { width: 100%; padding: 10px; margin-top: 10px; border-radius: 8px; border: 1px solid #ccc; }
+.popup-actions { margin-top: 15px; display: flex; justify-content: center; gap: 10px; }
+.popup-actions button { padding: 10px 18px; border-radius: 40px; border: none; cursor: pointer; color: #fff; }
+#popupSendBtn { background: var(--submit-color); }
+#popupSendBtn:hover { background: var(--submit-color-hover); }
+#popupCloseBtn { background: #999; }
+#popupCloseBtn:hover { background: #777; }
+.popup-hint { font-size: .8rem; color: #666; margin-top: 8px; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .select-btn { font-size: 1em; padding: 10px; }
+}
+@media (max-width: 480px) {
+  .select-btn { font-size: 0.9em; padding: 8px; }
+}
