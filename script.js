@@ -1,25 +1,25 @@
 /*****************************************
- * script.js — version stable & complète (corrigée)
+ * script.js — version stable & complète (Apps Script + EmailJS)
  *****************************************/
 
 /** Génère un ID unique format : DEP-YYMMDDHHMM-RR */
 const generateUniqueId = (postalCode) => {
-  const dep = postalCode.slice(0, 2); // département
+  const dep = (postalCode || '').slice(0, 2);
   const now = new Date();
-
   const YY = String(now.getFullYear()).slice(-2);
   const MM = String(now.getMonth() + 1).padStart(2, "0");
   const DD = String(now.getDate()).padStart(2, "0");
   const HH = String(now.getHours()).padStart(2, "0");
   const MI = String(now.getMinutes()).padStart(2, "0");
-
-  const rand = Math.floor(Math.random() * 90 + 10); // 10–99
-
+  const rand = Math.floor(Math.random() * 90 + 10);
   return `${dep}-${YY}${MM}${DD}${HH}${MI}-${rand}`;
 };
 
 /** Départements autorisés */
 const ALLOWED_DEPARTMENTS = ['08', '51'];
+
+/** URL de ta Web App Apps Script (déploiement) */
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxgw61JQjws1iKf2HHMl8XGDiw8dDGUxZR6NabXoT88seVFNhgiQDBI5W820wElCwOgjw/exec";
 
 document.addEventListener('DOMContentLoaded', () => {
   /* ========= EmailJS ========= */
@@ -147,7 +147,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   /* ========= Sélecteurs (rôle / type / priorité) ========= */
-  // Délégation => fonctionne même après reset/DOM dynamique
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('.select-btn');
     if (!btn) return;
@@ -363,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <p>Nous vous contacterons prochainement.</p>
       <div class="form-navigation">
         <button type="button" id="newRequestBtn" class="nav-btn nav-next">
-          Nouvelle demande
+          <span>Nouvelle demande</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
             <path fill="currentColor" d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/>
           </svg>
@@ -421,37 +420,63 @@ document.addEventListener('DOMContentLoaded', () => {
     const cp = (postalCodeInput.value || '').trim();
     if (!/^\d{5}$/.test(cp) || !isAllowedPostalCode(cp)) { openPopup(); return; }
 
+    const requestIdLocal = generateUniqueId(cp);
+    const data = {
+      name: document.getElementById('name').value.trim(),
+      email: document.getElementById('email').value.trim(),
+      phone: document.getElementById('phone').value.trim(),
+      address: document.getElementById('address').value.trim(),
+      city: cityInput.value.trim(),
+      postalCode: cp,
+      addressComplement: (document.getElementById('addressComplement').value || 'Non renseigné').trim(),
+      role: document.getElementById('role').value.trim(),
+      type: document.getElementById('type').value.trim(),
+      description: document.getElementById('description').value.trim(),
+      priority: document.getElementById('priority').value.trim(),
+      request_id: requestIdLocal
+    };
+
     try {
       setSubmittingState(true);
 
-      const requestId = generateUniqueId(cp); // ✅ CORRECTION : on passe bien le CP ici
+      /* 1) Enregistrement dans Google Sheet via Apps Script */
+      const resp = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+      if (!resp.ok) throw new Error("Erreur réseau Apps Script (" + resp.status + ")");
+      const result = await resp.json();
+      if (result.status !== "success") throw new Error(result.message || "Échec enregistrement Apps Script");
+      const requestId = result.requestId || requestIdLocal;
 
-      const data = {
-        name: document.getElementById('name').value,
-        email: document.getElementById('email').value,
-        phone: document.getElementById('phone').value,
-        address: document.getElementById('address').value,
-        city: cityInput.value,
-        postalCode: cp,
-        addressComplement: document.getElementById('addressComplement').value || 'Non renseigné',
-        role: document.getElementById('role').value,
-        type: document.getElementById('type').value,
-        description: document.getElementById('description').value,
-        priority: document.getElementById('priority').value,
-        request_id: requestId
-      };
+      /* 2) Envoi des emails en parallèle (ne bloque pas la confirmation si ça échoue) */
+      try {
+        if (!window.emailjs || !emailjs.send) throw new Error('EmailJS non chargé');
 
-      if (!window.emailjs || !emailjs.send) throw new Error('EmailJS non chargé');
+        const toOwner = emailjs.send('service_uzzmtzc', 'template_bes6bcg', {
+          to_email: 'ben@smartimmo.pro', ...data, request_id: requestId
+        });
+        const toClient = emailjs.send('service_uzzmtzc', 'template_dtvz9jh', {
+          to_email: data.email, ...data, request_id: requestId
+        });
 
-      // Envoi interne
-      await emailjs.send('service_uzzmtzc', 'template_bes6bcg', { to_email: 'ben@smartimmo.pro', ...data });
-      // Accusé client
-      await emailjs.send('service_uzzmtzc', 'template_dtvz9jh', { to_email: data.email, ...data });
+        const results = await Promise.allSettled([toOwner, toClient]);
+        const someEmailFailed = results.some(r => r.status === 'rejected');
+        if (someEmailFailed) {
+          showMessage("Demande enregistrée, mais l'email de confirmation n'a pas pu être envoyé à tous les destinataires.", "error", 7000);
+        }
+      } catch (mailErr) {
+        console.warn("EmailJS a échoué:", mailErr);
+        showMessage("Demande enregistrée, mais l'email de confirmation n'a pas pu être envoyé.", "error", 7000);
+      }
 
+      /* 3) Confirmation UI (quoi qu'il arrive si l'enregistrement est OK) */
       showConfirmationMessage(requestId);
+
     } catch (err) {
-      console.error('Erreur lors de l’envoi :', err);
-      showMessage('Une erreur est survenue lors de l’envoi. Veuillez réessayer.', 'error');
+      console.error('Erreur lors de la soumission :', err);
+      showMessage("Impossible d'enregistrer la demande pour le moment. Vérifiez votre connexion et réessayez.", 'error');
       setSubmittingState(false);
     }
   });

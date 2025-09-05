@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Suivi de demande – SmartImmo.Pro</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <header>
+    <img src="Logo.png" alt="Logo SmartImmo">
+  </header>
+
+  <main>
+    <div class="form-container">
+      <!-- Bouton retour vers l’accueil (identique au formulaire) -->
+      <div class="back-home-wrap">
+        <button type="button" class="nav-btn back-home" onclick="window.location.href='index.html'">
+          <!-- flèche gauche -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+          </svg>
+          <span>Accueil</span>
+        </button>
+      </div>
+
+      <h2>Suivi de votre demande</h2>
+      <p>Entrez votre email et votre numéro unique pour consulter l’état.</p>
+
+      <form id="trackForm" onsubmit="event.preventDefault(); alert('La consultation en ligne sera activée prochainement.');">
+        <label for="trackEmail">Adresse email *</label>
+        <input type="email" id="trackEmail" required placeholder="exemple@mail.com"/>
+
+        <label for="trackId">Numéro unique *</label>
+        <input type="text" id="trackId" required placeholder="ex: 51-2410121530-42"/>
+
+        <div class="form-navigation">
+          <button type="submit" class="nav-btn nav-next">
+            <span>Consulter</span>
+            <!-- flèche droite -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/>
+            </svg>
+          </button>
+        </div>
+      </form>
+    </div>
+  </main>
+<footer class="site-footer">
+  <div class="footer-container">
+    <p><strong>SmartImmo.Pro</strong> – Votre partenaire de confiance pour toutes vos interventions.</p>
+    <p class="footer-subtext">
+      Nous supervisons chaque intervention afin de garantir la <strong>qualité</strong>, la <strong>fiabilité</strong> et la <strong>sécurité</strong> des travaux réalisés.
+    </p>
+    <p class="footer-legal">
+      © 2025 SmartImmo.Pro – Tous droits réservés |
+      <a href="#">Mentions légales</a> | <a href="#">Politique de confidentialité</a> | <a
+	  href="apropos.html">À propos</a>
+    </p>
+  </div>
+</footer>
+</body>
+</html>

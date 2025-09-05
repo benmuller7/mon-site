@@ -14,15 +14,18 @@
 *::before,
 *::after { box-sizing: border-box; }
 
-body {
-  font-family: Arial, sans-serif;
+html, body {
+  height: 100%; /* Permet d'occuper toute la hauteur */
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: Arial, sans-serif;
   background: var(--background-color);
 }
 
 header {
   background: #fff;
-  padding: 3px;
+  padding: 10px;
   text-align: center;
   border-bottom: 2px solid #ddd;
   box-shadow: 0 2px 5px rgba(0,0,0,.1);
@@ -30,8 +33,12 @@ header {
 header img { max-width: 180px; display: inline-block; margin: 0 auto; height: auto; }
 
 main {
-  display: flex; justify-content: center; align-items: flex-start;
-  min-height: 100vh; padding: 20px; background: var(--background-color);
+  flex: 1; /* prend tout l’espace restant avant le footer */
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px;
+  background: var(--background-color);
 }
 
 .form-container {
@@ -39,7 +46,10 @@ main {
   padding: 20px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,.1);
 }
 
-h2 { font-size: 1.5em; margin: 0 0 15px; color: var(--primary-color); text-align: center; }
+h1, h2 { color: var(--primary-color); text-align: center; }
+h1 { margin: 0 0 10px; font-size: 1.8rem; }
+h2 { font-size: 1.5rem; margin: 0 0 15px; }
+
 label { display: block; font-weight: bold; margin: 5px 0; color: var(--primary-color); }
 
 input, textarea {
@@ -47,12 +57,62 @@ input, textarea {
   border: 1px solid #ccc; border-radius: 20px; font-size: 1em; background: #f9f9f9;
 }
 textarea { resize: vertical; height: 100px; }
-input:focus, textarea:focus, button:focus, .select-btn:focus {
+input:focus, textarea:focus, button:focus, .select-btn:focus, a.home-btn:focus, .back-home:focus {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
 
-/* Sélect buttons */
+/* ================= Accueil ================= */
+.home-container {
+  width: 100%; max-width: 680px; background: #fff; border-radius: 20px;
+  padding: 28px; box-shadow: 0 4px 10px rgba(0,0,0,.1);
+}
+.home-subtitle { margin: 6px 0 18px; color: #555; text-align: center; }
+
+.home-buttons {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 520px) {
+  .home-buttons { grid-template-columns: 1fr 1fr; }
+}
+.home-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 14px 16px; border-radius: 16px; text-decoration: none; font-weight: 700;
+  border: 1px solid transparent; transition: transform .06s ease, background .25s ease;
+}
+.home-btn:hover { transform: translateY(-1px); }
+.home-btn:active { transform: translateY(0); }
+.home-btn-icon { font-size: 1.2rem; line-height: 1; }
+.home-primary { background: var(--primary-color); color: #fff; }
+.home-primary:hover { background: var(--secondary-color); }
+.home-secondary { background: #f1f3ff; color: var(--primary-color); border-color: #dfe4ff; }
+.home-secondary:hover { background: #e9edff; }
+
+/* ================= Bouton retour accueil ================= */
+.back-home-wrap { display:flex; justify-content:flex-start; margin-bottom: 8px; }
+
+.back-home {
+  background: #f1f3ff !important;
+  color: var(--primary-color) !important;
+  border-radius: 30px !important;
+  padding: 4px 8px !important;
+  font-weight: 600 !important;
+  font-size: 0.75rem !important;
+  gap: 4px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  width: auto !important;
+  text-decoration: none;
+}
+.back-home svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+.back-home:hover { background: #e9edff !important; }
+
+/* ================= Sélect buttons ================= */
 .button-group {
   display: flex; flex-wrap: nowrap; gap: 10px; margin-bottom: 5px;
 }
@@ -67,20 +127,16 @@ input:focus, textarea:focus, button:focus, .select-btn:focus {
   fill: var(--primary-color);
   transition: fill .2s ease;
 }
-.select-btn.active {
-  background: var(--primary-color); color: #fff;
-}
+.select-btn.active { background: var(--primary-color); color: #fff; }
 .select-btn.active svg, .select-btn.active svg * { fill: #fff !important; }
-.select-btn:hover, .select-btn:focus {
-  background: var(--secondary-color); color:#fff;
-}
+.select-btn:hover, .select-btn:focus { background: var(--secondary-color); color:#fff; }
 .select-btn:hover svg, .select-btn:focus svg,
 .select-btn:hover svg *, .select-btn:focus svg * { fill: #fff; }
 
 .button-group.invalid .select-btn { border-color: var(--error-color); background: #ffe6e6; }
 .field-error { color: var(--error-color); font-size: .85rem; margin: 4px 2px 10px; }
 
-/* Étapes */
+/* ================= Étapes ================= */
 .form-step {
   display: none; opacity: 0; transform: translateX(-20px);
   transition: opacity .3s, transform .3s; margin-bottom: 30px;
@@ -93,47 +149,33 @@ input.invalid, textarea.invalid { border-color: var(--error-color); background: 
 .message.error { background: #ffe6e6; color: var(--error-color); }
 .message.success { background: #e6ffed; color: var(--success-color); }
 
-
-/* ========== Boutons d’action (nav) ========== */
+/* ================= Navigation ================= */
 .form-navigation {
   display: flex; align-items: center; gap: 12px; margin-top: 8px;
 }
 .nav-btn {
-  display: inline-flex;
-  align-items: center;       /* Centre verticalement texte + icône */
-  justify-content: center;
-  gap: 8px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border: none; cursor: pointer; color: #fff; font-size: 1rem; line-height: 1;
+  padding: 12px 16px; border-radius: 40px; transition: background-color .25s ease, opacity .2s ease;
+}
+.nav-btn span { display:inline-flex; align-items:center; }
+.nav-btn svg { display:inline-block; vertical-align:middle; }
 
-  border: none; cursor: pointer; color: #fff; font-size: 1rem;
-  line-height: 1;            /* Empêche le texte de flotter */
-  vertical-align: middle;
-  padding: 12px 16px; border-radius: 40px;
-  transition: background-color .25s ease, opacity .2s ease;
-}
-.nav-btn svg {
-  width: 1em; height: 1em;
-  flex-shrink: 0;
-  vertical-align: middle;    /* Aligne l’icône avec le texte */
-}
 .nav-btn:disabled { opacity: .75; cursor: not-allowed; }
 
-/* Précédent = rond gris, taille fixe */
+/* Précédent = rond gris */
 .nav-prev {
   background: #eeeeee; color: #333; width: 56px; height: 56px; padding: 0; border-radius: 50%;
   flex: 0 0 56px;
 }
 .nav-prev:hover { background: #dcdcdc; }
 
-/* Suivant = bleu, prend la largeur dispo */
-.nav-next {
-  background: var(--primary-color); flex: 1 1 auto;
-}
+/* Suivant = bleu */
+.nav-next { background: var(--primary-color); flex: 1 1 auto; }
 .nav-next:hover { background: var(--secondary-color); }
 
-/* Soumettre = vert, prend la largeur dispo */
-.nav-submit {
-  background: var(--submit-color); flex: 1 1 auto; display: none;
-}
+/* Soumettre = vert */
+.nav-submit { background: var(--submit-color); flex: 1 1 auto; display: none; }
 .nav-submit:hover { background: var(--submit-color-hover); }
 
 /* Spinner sur le bouton Soumettre */
@@ -145,8 +187,7 @@ input.invalid, textarea.invalid { border-color: var(--error-color); background: 
 }
 @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
 
-
-/* Suggestions Ville */
+/* ================= Suggestions Ville ================= */
 .city-suggestions {
   margin-top: -10px; margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 10px;
   background: #fff; color: var(--primary-color); font-size: .9em;
@@ -156,8 +197,9 @@ input.invalid, textarea.invalid { border-color: var(--error-color); background: 
 .city-suggestions li:last-child { border-bottom: none; }
 .city-suggestions li:hover { background: #f0f0f9; }
 
-/* Barre d’avancement */
-.wizard-steps { position: relative; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+/* ================= Barre d’avancement ================= */
+.wizard-steps { position: relative; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
+	margin-top: 20px;}
 .wizard-line { position: absolute; top: 35%; left: 20px; right: 20px; height: 1px; background: var(--primary-color); z-index: 1; }
 .wizard-step { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; }
 .wizard-circle {
@@ -170,12 +212,12 @@ input.invalid, textarea.invalid { border-color: var(--error-color); background: 
 .wizard-step.completed .wizard-circle::after { content:"\2713"; position:absolute; color:#fff; font-size:1rem; top:50%; left:50%; transform:translate(-50%,-50%); }
 .wizard-step.active .wizard-circle { background: var(--primary-color); color:#fff; border-color:#fff; box-shadow: 0 0 0 2px var(--primary-color); cursor:pointer; }
 
-/* CGU */
+/* ================= CGU ================= */
 .cgu-container { display:flex; align-items:center; gap:6px; margin-bottom:20px; }
 .cgu-container input[type="checkbox"] { width:16px; height:16px; cursor:pointer; }
 .cgu-container a { color: var(--primary-color); text-decoration: underline; }
 
-/* Popup hors zone */
+/* ================= Popup hors zone ================= */
 .popup-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; justify-content: center; align-items: center; z-index: 9999; }
 .popup-content { background: #fff; padding: 20px; border-radius: 12px; max-width: 420px; width: 90%; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,.2); }
 .popup-content h3 { margin-top: 0; color: var(--primary-color); }
@@ -188,7 +230,45 @@ input.invalid, textarea.invalid { border-color: var(--error-color); background: 
 #popupCloseBtn:hover { background: #777; }
 .popup-hint { font-size: .8rem; color: #666; margin-top: 8px; }
 
-/* Responsive */
+/* ================= Footer ================= */
+.site-footer {
+  background: #fff;
+  border-top: 1px solid #ddd;
+  padding: 14px 10px;       /* un peu moins haut */
+  text-align: center;
+  font-size: 0.85rem;       /* plus compact */
+  color: #555;
+  margin-top: 20px;         /* espace réduit avant le footer */
+}
+
+.footer-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.footer-subtext {
+  margin: 6px 0;
+  color: #4A5BBE;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.footer-legal {
+  font-size: 0.75rem;       /* plus discret */
+  color: #777;
+  margin-top: 8px;
+}
+
+.footer-legal a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.footer-legal a:hover {
+  text-decoration: underline;
+}
+
+/* ================= Responsive ================= */
 @media (max-width: 768px) {
   .select-btn { font-size: 1em; padding: 10px; }
 }
