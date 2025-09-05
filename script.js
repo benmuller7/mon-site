@@ -6,7 +6,7 @@
 const generateUniqueId = () => `REQ-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
 /** URL de ta Web App Apps Script (doit finir par /exec) */
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxgw61JQjws1iKf2HHMl8XGDiw8dDGUxZR6NabXoT88seVFNhgiQDBI5W820wElCwOgjw/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxgw61JQiws1iKf2HHMl8XGDiw8dDGUxZR6NabXoT88seVFNhgiQDBl5W820wElCwOgjw/exec";
 
 /* =========================================
    === DEBUG HELPER (amovible, spécial iPad) ===
@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  /* Wizard - barre de progression */
+  /* Wizard */
   wizardSteps.forEach((stepElem, i) => {
     stepElem.addEventListener('click', () => {
       if (stepElem.classList.contains('completed') || stepElem.classList.contains('active')) {
@@ -344,12 +344,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     try {
-      // 1) Enregistrer dans Google Sheet via Apps Script
+      // 1) Enregistrer dans Google Sheet via Apps Script — SANS headers (évite le préflight iOS)
       let resp;
       try {
         resp = await fetch(WEB_APP_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          // ne pas mettre de headers pour éviter OPTIONS/CORS sur iOS
           body: JSON.stringify(data)
         });
       } catch (netErr) {
@@ -410,9 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // 3) Confirmation (toujours si enregistrement OK)
-      if (!emailWarningShown) {
-        showMessage("Demande enregistrée ✅ et emails envoyés.", 'success', 4000);
-      }
+      if (!emailWarningShown) showMessage("Demande enregistrée ✅ et emails envoyés.", 'success', 4000);
       showConfirmationMessage(finalRequestId);
 
     } catch (err) {
@@ -423,4 +421,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* GO */
   initializeSteps();
+
+  // Alerte utile si la page est ouverte en file:// (Textastic Local)
+  if (location.protocol === 'file:') {
+    showMessage(
+      "Vous visualisez la page en <b>local (file://)</b>. Les enregistrements vers Google Apps Script peuvent être <b>bloqués</b> par le navigateur.<br>" +
+      "Ouvrez le site via <b>https://smartimmo.pro</b> (ou Textastic en mode <b>Remote</b>).",
+      'error',
+      15000
+    );
+  }
 });
