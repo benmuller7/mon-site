@@ -9,6 +9,111 @@ const generateUniqueId = () => {
   return `REQ-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 };
 
+/* =========================================
+   === DEBUG HELPER (amovible, spécial iPad) ===
+   - Panneau debug embarqué (toggle ?debug=1, appui long 1.5s sur <header>, ou triple-tap)
+   - Capture window.onerror / unhandledrejection
+   - API: DBG.log(...), DBG.warn(...), DBG.error(...), DBG.show(msgHTML), DBG.clear()
+   Pour retirer: supprimer ce bloc + appels DBG.*
+========================================= */
+(function setupSmartDebug() {
+  const qsDebug = /[?&]debug=1\b/.test(location.search);
+  const panel = document.createElement('div');
+  const btn = document.createElement('button');
+
+  panel.id = 'smart-debug-panel';
+  panel.style.cssText = `
+    position: fixed; inset: auto 8px 8px 8px;
+    max-height: 42vh; overflow:auto; z-index:999999;
+    background:#0b1020; color:#e6f0ff; font:12px/1.4 -apple-system,Segoe UI,Arial;
+    border:1px solid #223; border-radius:10px; padding:10px; display:${qsDebug?'block':'none'};
+    box-shadow:0 10px 30px rgba(0,0,0,.35);
+  `;
+  panel.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+    <strong>🐞 Debug</strong>
+    <span style="opacity:.7">— iPad console</span>
+    <span style="margin-left:auto"></span>
+    <button id="dbg-clear" style="background:#263; color:#fff; border:none; border-radius:8px; padding:6px 10px;">Effacer</button>
+  </div>
+  <div id="dbg-log" style="white-space:pre-wrap;"></div>`;
+  document.addEventListener('DOMContentLoaded', ()=>document.body.appendChild(panel));
+
+  btn.id = 'smart-debug-toggle';
+  btn.type = 'button';
+  btn.textContent = '🐞';
+  btn.style.cssText = `
+    position: fixed; right: 8px; bottom: 56vh; z-index:999999;
+    width:44px;height:44px;border-radius:50%;border:none;
+    background:#4A5BBE;color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.25);
+    display:${qsDebug?'block':'none'};
+  `;
+  btn.addEventListener('click', ()=>{ panel.style.display = (panel.style.display==='none'?'block':'none'); });
+  document.addEventListener('DOMContentLoaded', ()=>document.body.appendChild(btn));
+
+  function addLine(kind, args) {
+    const log = document.getElementById('dbg-log');
+    if (!log) return;
+    const time = new Date().toLocaleTimeString();
+    const msg = args.map(a=>{
+      if (a instanceof Error) return `${a.name}: ${a.message}\n${a.stack||''}`;
+      if (typeof a==='object') { try { return JSON.stringify(a,null,2); } catch { return String(a); } }
+      return String(a);
+    }).join(' ');
+    const color = kind==='error'?'#ff8a80':(kind==='warn'?'#ffd180':'#9be7ff');
+    const div = document.createElement('div');
+    div.style.cssText = `border-left:3px solid ${color};padding-left:8px;margin:6px 0;`;
+    div.textContent = `[${time}] ${kind.toUpperCase()} — ${msg}`;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  const DBG = {
+    showToggle: () => { btn.style.display = 'block'; },
+    hideToggle: () => { btn.style.display = 'none';  },
+    open:  () => { panel.style.display = 'block'; },
+    close: () => { panel.style.display = 'none';  },
+    clear: () => { const log = document.getElementById('dbg-log'); if (log) log.innerHTML=''; },
+    log:  (...a)=> addLine('log', a),
+    warn: (...a)=> addLine('warn', a),
+    error:(...a)=> addLine('error', a),
+    show: (html)=> {
+      const mc = document.getElementById('messageContainer');
+      if (!mc) return alert(html.replace(/<[^>]+>/g,''));
+      mc.innerHTML = html; mc.className='message error'; mc.style.display='block';
+    }
+  };
+  window.DBG = DBG;
+  document.addEventListener('click', (function(){
+    let clicks = 0, t;
+    return ()=>{ clicks++; clearTimeout(t); t=setTimeout(()=>{ if (clicks>=3){ DBG.showToggle(); DBG.open(); } clicks=0; }, 450); };
+  })());
+
+  // Appui long sur header pour afficher
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const header = document.querySelector('header') || document.body;
+    let timer=null;
+    header.addEventListener('touchstart', ()=>{ timer=setTimeout(()=>{ DBG.showToggle(); DBG.open(); },1500); }, {passive:true});
+    header.addEventListener('touchend', ()=>{ clearTimeout(timer); }, {passive:true});
+  });
+
+  document.addEventListener('click', (e)=> {
+    if (e.target && e.target.id==='dbg-clear') DBG.clear();
+  });
+
+  // Hooks globaux
+  window.onerror = function (msg, src, line, col, err) {
+    DBG.error('window.onerror', {msg, src, line, col, err: (err? (err.stack||err.message||String(err)) : String(msg))});
+    DBG.show(`Erreur JS : <code>${String(msg)}</code><br>Source: <code>${src}:${line}:${col}</code>`);
+  };
+  window.addEventListener('unhandledrejection', (e)=>{
+    const r = e.reason || {};
+    DBG.error('unhandledrejection', r);
+    DBG.show(`Promesse rejetée : <code>${String(r.message||r)}</code>`);
+  });
+})();
+
+/* ===== FIN DEBUG HELPER ===== */
+
 document.addEventListener('DOMContentLoaded', () => {
   // Récupère toutes les "étapes" du formulaire
   const steps = document.querySelectorAll('.form-step');
@@ -20,10 +125,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Écouteurs de clic sur les pastilles
   wizardSteps.forEach((stepElem, i) => {
     stepElem.addEventListener('click', () => {
-      // On autorise seulement le clic sur étapes passées (.completed) ou active
       if (stepElem.classList.contains('completed') || stepElem.classList.contains('active')) {
         currentStep = i;
-        // On relance la mise à jour globale (form + barre)
         initializeSteps();
       }
     });
@@ -35,10 +138,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const nextBtn = document.getElementById('nextBtn');
   const cguCheckbox = document.getElementById('acceptCgu');
 
-  // Boutons de sélection (type d'intervention, priorité, rôle, etc.)
+  // Boutons de sélection (type/priorité/rôle)
   const selectButtons = document.querySelectorAll('.select-btn');
 
-  // Gestion de la suggestion de ville via code postal
+  // Suggestion de ville
   const postalCodeInput = document.getElementById('postalCode');
   const citySuggestionsContainer = document.createElement('div');
   citySuggestionsContainer.classList.add('city-suggestions');
@@ -46,36 +149,18 @@ document.addEventListener('DOMContentLoaded', () => {
   postalCodeInput.parentElement.appendChild(citySuggestionsContainer);
 
   // Validation d'email
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  // Affichage de messages d'erreur / succès (ajout d'un 3e param: timeout)
+  // Affichage messages (supporte HTML + durée paramétrable)
   const showMessage = (message, type = 'error', timeout = 8000) => {
     const container = document.getElementById('messageContainer');
-    container.innerHTML = message; // autorise un peu de HTML pour debug formaté
+    if (!container) { alert(message.replace(/<[^>]+>/g,'')); return; }
+    container.innerHTML = message;
     container.className = `message ${type}`;
     container.style.display = 'block';
     if (timeout > 0) {
       clearTimeout(showMessage._t);
       showMessage._t = setTimeout(() => (container.style.display = 'none'), timeout);
-    }
-  };
-
-  // Petite aide pour formater proprement les erreurs
-  const formatErrorDetail = (err) => {
-    try {
-      if (!err) return '';
-      const parts = [];
-      if (typeof err === 'string') parts.push(err);
-      if (err.status) parts.push(`Status: ${err.status}`);
-      if (err.text) parts.push(`Text: ${err.text}`);
-      if (err.message) parts.push(`Message: ${err.message}`);
-      if (err.name) parts.push(`Name: ${err.name}`);
-      return parts.filter(Boolean).join(' | ');
-    } catch {
-      return '';
     }
   };
 
@@ -90,9 +175,10 @@ document.addEventListener('DOMContentLoaded', () => {
           const response = await fetch(
             `https://geo.api.gouv.fr/communes?codePostal=${postalCode}&fields=nom&format=json&geometry=centre`
           );
-          if (!response.ok) throw new Error('Erreur réseau');
-
+          if (!response.ok) throw new Error(`Erreur réseau: ${response.status}`);
           const data = await response.json();
+          DBG.log('Villes API OK', data);
+
           if (data.length > 0) {
             citySuggestionsContainer.innerHTML =
               '<ul>' + data.map((city) => `<li tabindex="0">${city.nom}</li>`).join('') + '</ul>';
@@ -107,13 +193,11 @@ document.addEventListener('DOMContentLoaded', () => {
               li.addEventListener('keydown', (e) => { if (e.key === 'Enter') pick(); });
             });
           } else {
-            citySuggestionsContainer.innerHTML =
-              '<p>Aucune ville trouvée pour ce code postal.</p>';
+            citySuggestionsContainer.innerHTML = '<p>Aucune ville trouvée pour ce code postal.</p>';
           }
         } catch (error) {
-          console.error('Erreur lors de la récupération des données :', error);
-          citySuggestionsContainer.innerHTML =
-            '<p>Impossible de récupérer les données des villes.</p>';
+          DBG.error('Villes API KO', error);
+          citySuggestionsContainer.innerHTML = '<p>Impossible de récupérer les données des villes.</p>';
         }
       } else {
         citySuggestionsContainer.style.display = 'none';
@@ -121,15 +205,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 300);
   });
 
-  // Sélection de rôle, type, etc. via boutons
+  // Sélection de rôle / type / priorité via boutons
   selectButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       const parent = btn.closest('.button-group');
       const hiddenInput = parent.nextElementSibling; // input caché après .button-group
+      if (hiddenInput) hiddenInput.value = btn.dataset.value;
 
-      if (hiddenInput) {
-        hiddenInput.value = btn.dataset.value;
-      }
       parent.querySelectorAll('.select-btn').forEach((b) => {
         b.classList.remove('active');
         b.setAttribute('aria-pressed', 'false');
@@ -165,10 +247,8 @@ document.addEventListener('DOMContentLoaded', () => {
     nextBtn.style.display = currentStep < steps.length - 1 ? 'inline-block' : 'none';
     submitBtn.style.display = currentStep === steps.length - 1 ? 'inline-block' : 'none';
 
-    // Met à jour la barre d’avancement
     updateWizardStepsDisplay(currentStep);
 
-    // Mise à jour du résumé si on est à la dernière étape
     if (currentStep === steps.length - 1) {
       updateSummary();
     }
@@ -247,13 +327,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const resetForm = () => {
     document.getElementById('repairForm').reset();
     const confirmationStep = document.querySelector('.form-step.confirmation');
-    if (confirmationStep) {
-      confirmationStep.remove();
-    }
+    if (confirmationStep) confirmationStep.remove();
+
     const summaryElements = document.querySelectorAll('[id^="summary"]');
-    summaryElements.forEach((el) => {
-      el.textContent = 'Non renseigné';
-    });
+    summaryElements.forEach((el) => { el.textContent = 'Non renseigné'; });
+
     currentStep = 0;
     initializeSteps();
   };
@@ -263,7 +341,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmationStep = document.createElement('div');
     confirmationStep.classList.add('form-step', 'confirmation');
 
-    // Ici, on affiche requestId pour que ce soit le même numéro qu'on a généré
     confirmationStep.innerHTML = `
       <h2>Confirmation</h2>
       <p>Votre demande a été enregistrée avec succès.</p>
@@ -274,23 +351,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelector('.form-container').appendChild(confirmationStep);
 
-    // Masquer les autres étapes
     steps.forEach((step) => step.classList.remove('active'));
     confirmationStep.classList.add('active');
 
-    // Masquer les boutons
     prevBtn.style.display = 'none';
     nextBtn.style.display = 'none';
     submitBtn.style.display = 'none';
 
-    // Force l'étape 4 à être cochée
     currentStep = steps.length; 
     updateWizardStepsDisplay(currentStep);
 
     document.getElementById('newRequestBtn').addEventListener('click', resetForm);
   };
 
-  // Soumission du formulaire (EmailJS) — AVEC DEBUG DÉTAILLÉ
+  // Soumission du formulaire (EmailJS) — avec DEBUG détaillé
   document.getElementById('repairForm').addEventListener('submit', async (event) => {
     event.preventDefault();
 
@@ -318,31 +392,24 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     try {
-      // Vérifie la présence d'EmailJS
       if (!window.emailjs || typeof emailjs.init !== 'function' || typeof emailjs.send !== 'function') {
-        showMessage(
-          "EmailJS n'est pas chargé. Vérifie la balise CDN dans index.html et l'ordre des scripts.<br><code>&lt;script src=\"https://cdn.jsdelivr.net/npm/@emailjs/browser@3.11.0/dist/email.min.js\"&gt;&lt;/script&gt;</code>",
-          'error',
-          12000
-        );
+        const hint = `EmailJS n'est pas chargé.
+Vérifie le CDN dans index.html :
+<code>&lt;script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3.11.0/dist/email.min.js"&gt;&lt;/script&gt;</code>`;
+        DBG.error('EmailJS non chargé');
+        showMessage(hint.replace(/\n/g,'<br>'), 'error', 15000);
         return;
       }
 
-      // Initialise EmailJS (User ID)
-      try {
-        emailjs.init('mgZZQLZBSBI7EbaiG');
-      } catch (initErr) {
-        console.error('EmailJS init error:', initErr);
-        showMessage(
-          `Échec init EmailJS. Détails: <code>${formatErrorDetail(initErr)}</code>`,
-          'error',
-          12000
-        );
+      try { emailjs.init('mgZZQLZBSBI7EbaiG'); }
+      catch (initErr) {
+        DBG.error('EmailJS init error', initErr);
+        showMessage(`Échec init EmailJS: <code>${initErr && (initErr.message || initErr)}</code>`, 'error', 12000);
         return;
       }
 
-      // Envoi vers SmartImmo et vers le client en parallèle (debug partiel)
-      const toOwnerPromise = emailjs.send('service_uzzmtzc', 'template_bes6bcg', {
+      // Envoi propriétaire + client en parallèle
+      const toOwner = emailjs.send('service_uzzmtzc', 'template_bes6bcg', {
         to_email: 'ben@smartimmo.pro',
         from_name: formData.name,
         from_email: formData.email,
@@ -358,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
         request_id: requestId
       });
 
-      const toClientPromise = emailjs.send('service_uzzmtzc', 'template_dtvz9jh', {
+      const toClient = emailjs.send('service_uzzmtzc', 'template_dtvz9jh', {
         to_email: formData.email,
         from_name: formData.name,
         from_email: formData.email,
@@ -374,44 +441,35 @@ document.addEventListener('DOMContentLoaded', () => {
         request_id: requestId
       });
 
-      const results = await Promise.allSettled([toOwnerPromise, toClientPromise]);
+      const results = await Promise.allSettled([toOwner, toClient]);
+      DBG.log('EmailJS results', results);
 
-      const ownerRes = results[0];
-      const clientRes = results[1];
+      const mapRes = (r) => r.status === 'fulfilled'
+        ? { ok:true, value:r.value }
+        : { ok:false, error: r.reason };
 
-      const ownerOK = ownerRes.status === 'fulfilled';
-      const clientOK = clientRes.status === 'fulfilled';
+      const owner = mapRes(results[0]);
+      const client = mapRes(results[1]);
 
-      if (ownerOK && clientOK) {
-        // Succès complet
+      if (owner.ok && client.ok) {
         showConfirmationMessage(requestId);
       } else {
-        // Échec partiel ou total — on affiche précisément quoi
-        const ownerErr = ownerOK ? '' : formatErrorDetail(ownerRes.reason);
-        const clientErr = clientOK ? '' : formatErrorDetail(clientRes.reason);
-
-        let msg = `<strong>Échec d'envoi EmailJS.</strong><br>`;
-        msg += `<ul style="margin:6px 0 0 18px;padding:0">`;
-        msg += `<li>Propriétaire (ben@smartimmo.pro) : ${ownerOK ? '✅ OK' : `❌ KO — <code>${ownerErr || 'Aucune info'}</code>`}</li>`;
-        msg += `<li>Client (${formData.email}) : ${clientOK ? '✅ OK' : `❌ KO — <code>${clientErr || 'Aucune info'}</code>`}</li>`;
-        msg += `</ul>`;
-        msg += `<div style="margin-top:8px;font-size:0.9em;opacity:0.9">Astuce : vérifie <code>service_uzzmtzc</code>, <code>template_bes6bcg</code>, <code>template_dtvz9jh</code> et ton <code>userId</code>. Consulte aussi la console (F12 &gt; Console/Network).</div>`;
-
-        showMessage(msg, 'error', 15000);
+        let msg = `<strong>Échec d'envoi EmailJS.</strong><br><ul style="margin:6px 0 0 18px;padding:0">`;
+        if (!owner.ok) msg += `<li>Propriétaire (ben@smartimmo.pro): ❌ KO — <code>${(owner.error && (owner.error.text||owner.error.message||owner.error.status||owner.error))||'Aucune info'}</code></li>`;
+        else            msg += `<li>Propriétaire (ben@smartimmo.pro): ✅ OK</li>`;
+        if (!client.ok) msg += `<li>Client (${formData.email}): ❌ KO — <code>${(client.error && (client.error.text||client.error.message||client.error.status||client.error))||'Aucune info'}</code></li>`;
+        else            msg += `<li>Client (${formData.email}): ✅ OK</li>`;
+        msg += `</ul><div style="margin-top:8px;font-size:.9em;opacity:.9">Vérifie <code>service_uzzmtzc</code>, <code>template_bes6bcg</code>, <code>template_dtvz9jh</code>, et l’UserID dans <code>emailjs.init(...)</code>.</div>`;
+        showMessage(msg, 'error', 16000);
+        DBG.warn('EmailJS partial failure', {owner, client, payload: formData});
       }
-
     } catch (error) {
-      // Erreur générale (réseau, CORS, exception JS, etc.)
-      console.error('Erreur lors de l\'envoi :', error);
-      const details = formatErrorDetail(error);
-      const hint = (error && (error.name === 'TypeError' || /Network/i.test(error.message || '')))
-        ? "<br><em>Indice :</em> problème réseau/CORS. Vérifie que ton site est bien servi en <strong>HTTPS</strong> et que les bloqueurs ne perturbent pas la requête."
-        : '';
-      showMessage(
-        `Une erreur est survenue pendant l'envoi.<br><code>${details || 'Aucun détail transmis'}</code>${hint}`,
-        'error',
-        15000
-      );
+      DBG.error('Soumission KO', error);
+      const details = (error && (error.text||error.status||error.message||error.name)) || String(error);
+      const hint = /Network|TypeError/i.test(String(error?.message||error))
+        ? "<br><em>Indice :</em> réseau/CORS. Assure-toi d’être en <strong>HTTPS</strong> et sans bloqueur de contenu."
+        : "";
+      showMessage(`Erreur pendant l'envoi.<br><code>${details}</code>${hint}`, 'error', 16000);
     }
   });
 
