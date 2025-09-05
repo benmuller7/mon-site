@@ -1,135 +1,182 @@
 /*****************************************
- * script.js — version stable & complète (Apps Script + EmailJS)
+ * script.js
  *****************************************/
 
-/** Génère un ID unique format : DEP-YYMMDDHHMM-RR */
-const generateUniqueId = (postalCode) => {
-  const dep = (postalCode || '').slice(0, 2);
-  const now = new Date();
-  const YY = String(now.getFullYear()).slice(-2);
-  const MM = String(now.getMonth() + 1).padStart(2, "0");
-  const DD = String(now.getDate()).padStart(2, "0");
-  const HH = String(now.getHours()).padStart(2, "0");
-  const MI = String(now.getMinutes()).padStart(2, "0");
-  const rand = Math.floor(Math.random() * 90 + 10);
-  return `${dep}-${YY}${MM}${DD}${HH}${MI}-${rand}`;
+/**
+ * Génère un ID unique basé sur l'heure actuelle et un nombre aléatoire.
+ */
+const generateUniqueId = () => {
+  return `REQ-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 };
 
-/** Départements autorisés */
-const ALLOWED_DEPARTMENTS = ['08', '51'];
-
-/** URL de ta Web App Apps Script (déploiement) */
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxgw61JQjws1iKf2HHMl8XGDiw8dDGUxZR6NabXoT88seVFNhgiQDBI5W820wElCwOgjw/exec";
-
 document.addEventListener('DOMContentLoaded', () => {
-  /* ========= EmailJS ========= */
-  if (window.emailjs && typeof emailjs.init === 'function') {
-    emailjs.init('mgZZQLZBSBI7EbaiG');
-  }
-
-  /* ========= Références ========= */
-  const form = document.getElementById('repairForm');
+  // Récupère toutes les "étapes" du formulaire
   const steps = document.querySelectorAll('.form-step');
-  const wizardSteps = document.querySelectorAll('.wizard-step');
-
-  const submitBtn = document.getElementById('submitBtn');
-  const prevBtn   = document.getElementById('prevBtn');
-  const nextBtn   = document.getElementById('nextBtn');
-  const cguCheckbox = document.getElementById('acceptCgu');
-
-  const messageContainer = document.getElementById('messageContainer');
-
-  const postalCodeInput = document.getElementById('postalCode');
-  const cityInput = document.getElementById('city');
-
-  // Suggestions ville (conteneur sous le champ CP)
-  const citySuggestionsContainer = document.createElement('div');
-  citySuggestionsContainer.classList.add('city-suggestions');
-  citySuggestionsContainer.setAttribute('role', 'listbox');
-  citySuggestionsContainer.style.display = 'none';
-  postalCodeInput.parentElement.appendChild(citySuggestionsContainer);
-
-  // Popup “hors zone” (si présent)
-  const popupOverlay  = document.getElementById('popup-departement');
-  const popupContent  = popupOverlay?.querySelector('.popup-content') || null;
-  const popupSendBtn  = document.getElementById('popupSendBtn');
-  const popupCloseBtn = document.getElementById('popupCloseBtn');
-  const waitlistEmail = document.getElementById('waitlistEmail');
-
   let currentStep = 0;
 
-  /* ========= Helpers ========= */
-  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const isAllowedPostalCode = (val) => /^\d{5}$/.test(val) && ALLOWED_DEPARTMENTS.includes(val.slice(0,2));
+  // Barre d’avancement (les pastilles)
+  const wizardSteps = document.querySelectorAll('.wizard-step');
 
-  const showMessage = (message, type = 'error', timeout = 5000) => {
-    if (!messageContainer) return;
-    messageContainer.textContent = message;
-    messageContainer.className = `message ${type}`;
-    messageContainer.style.display = 'block';
-    if (timeout > 0) {
-      clearTimeout(showMessage._t);
-      showMessage._t = setTimeout(() => (messageContainer.style.display = 'none'), timeout);
-    }
-  };
-
-  const openPopup = () => {
-    if (!popupOverlay) {
-      showMessage("Désolé, le service n’est pas encore disponible dans votre département. Laissez votre email pour être prévenu.", 'error', 7000);
-      return;
-    }
-    popupOverlay.style.display = 'flex';
-    popupOverlay.setAttribute('aria-hidden','false');
-    setTimeout(() => waitlistEmail?.focus(), 0);
-  };
-
-  const closePopup = () => {
-    if (!popupOverlay) return;
-    popupOverlay.style.display = 'none';
-    popupOverlay.setAttribute('aria-hidden','true');
-  };
-
-  popupOverlay?.addEventListener('click', (e) => { if (e.target === popupOverlay) closePopup(); });
-  popupCloseBtn?.addEventListener('click', closePopup);
-  popupOverlay?.addEventListener('keydown', (e) => {
-    if (e.key !== 'Tab' || !popupContent) return;
-    const focusables = popupContent.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])');
-    const list = [...focusables]; if (!list.length) return;
-    const first = list[0], last = list[list.length-1];
-    if (e.shiftKey && document.activeElement === first) { last.focus(); e.preventDefault(); }
-    else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); }
-  });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && popupOverlay?.style.display === 'flex') closePopup(); });
-
-  /* ========= Wizard ========= */
+  // Écouteurs de clic sur les pastilles
   wizardSteps.forEach((stepElem, i) => {
     stepElem.addEventListener('click', () => {
+      // On autorise seulement le clic sur étapes passées (.completed) ou active
       if (stepElem.classList.contains('completed') || stepElem.classList.contains('active')) {
         currentStep = i;
+        // On relance la mise à jour globale (form + barre)
         initializeSteps();
       }
     });
   });
 
-  const updateWizardStepsDisplay = (iActive) => {
-    wizardSteps.forEach((stepElem, i) => {
-      if (i < iActive) { stepElem.classList.add('completed'); stepElem.classList.remove('active'); }
-      else if (i === iActive) { stepElem.classList.add('active'); stepElem.classList.remove('completed'); }
-      else { stepElem.classList.remove('active', 'completed'); }
+  // Boutons de navigation
+  const submitBtn = document.getElementById('submitBtn');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const cguCheckbox = document.getElementById('acceptCgu');
+
+  // Boutons de sélection (type d'intervention, priorité, rôle, etc.)
+  const selectButtons = document.querySelectorAll('.select-btn');
+
+  // Gestion de la suggestion de ville via code postal
+  const postalCodeInput = document.getElementById('postalCode');
+  const citySuggestionsContainer = document.createElement('div');
+  citySuggestionsContainer.classList.add('city-suggestions');
+  citySuggestionsContainer.setAttribute('role', 'listbox');
+  postalCodeInput.parentElement.appendChild(citySuggestionsContainer);
+
+  // Validation d'email
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Affichage de messages d'erreur / succès (ajout d'un 3e param: timeout)
+  const showMessage = (message, type = 'error', timeout = 8000) => {
+    const container = document.getElementById('messageContainer');
+    container.innerHTML = message; // autorise un peu de HTML pour debug formaté
+    container.className = `message ${type}`;
+    container.style.display = 'block';
+    if (timeout > 0) {
+      clearTimeout(showMessage._t);
+      showMessage._t = setTimeout(() => (container.style.display = 'none'), timeout);
+    }
+  };
+
+  // Petite aide pour formater proprement les erreurs
+  const formatErrorDetail = (err) => {
+    try {
+      if (!err) return '';
+      const parts = [];
+      if (typeof err === 'string') parts.push(err);
+      if (err.status) parts.push(`Status: ${err.status}`);
+      if (err.text) parts.push(`Text: ${err.text}`);
+      if (err.message) parts.push(`Message: ${err.message}`);
+      if (err.name) parts.push(`Name: ${err.name}`);
+      return parts.filter(Boolean).join(' | ');
+    } catch {
+      return '';
+    }
+  };
+
+  // Débounce pour la suggestion de ville
+  let debounceTimeout;
+  postalCodeInput.addEventListener('input', () => {
+    clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(async () => {
+      const postalCode = postalCodeInput.value.trim();
+      if (postalCode.length === 5 && /^[0-9]{5}$/.test(postalCode)) {
+        try {
+          const response = await fetch(
+            `https://geo.api.gouv.fr/communes?codePostal=${postalCode}&fields=nom&format=json&geometry=centre`
+          );
+          if (!response.ok) throw new Error('Erreur réseau');
+
+          const data = await response.json();
+          if (data.length > 0) {
+            citySuggestionsContainer.innerHTML =
+              '<ul>' + data.map((city) => `<li tabindex="0">${city.nom}</li>`).join('') + '</ul>';
+            citySuggestionsContainer.style.display = 'block';
+
+            citySuggestionsContainer.querySelectorAll('li').forEach((li) => {
+              const pick = () => {
+                document.getElementById('city').value = li.textContent;
+                citySuggestionsContainer.style.display = 'none';
+              };
+              li.addEventListener('click', pick);
+              li.addEventListener('keydown', (e) => { if (e.key === 'Enter') pick(); });
+            });
+          } else {
+            citySuggestionsContainer.innerHTML =
+              '<p>Aucune ville trouvée pour ce code postal.</p>';
+          }
+        } catch (error) {
+          console.error('Erreur lors de la récupération des données :', error);
+          citySuggestionsContainer.innerHTML =
+            '<p>Impossible de récupérer les données des villes.</p>';
+        }
+      } else {
+        citySuggestionsContainer.style.display = 'none';
+      }
+    }, 300);
+  });
+
+  // Sélection de rôle, type, etc. via boutons
+  selectButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const parent = btn.closest('.button-group');
+      const hiddenInput = parent.nextElementSibling; // input caché après .button-group
+
+      if (hiddenInput) {
+        hiddenInput.value = btn.dataset.value;
+      }
+      parent.querySelectorAll('.select-btn').forEach((b) => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      });
+      btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
     });
-  };
+  });
 
+  // Met à jour la barre d’avancement : active / completed
+  function updateWizardStepsDisplay(currentStep) {
+    const wizardSteps = document.querySelectorAll('.wizard-step');
+    wizardSteps.forEach((stepElem, i) => {
+      if (i < currentStep) {
+        stepElem.classList.add('completed');
+        stepElem.classList.remove('active');
+      } else if (i === currentStep) {
+        stepElem.classList.add('active');
+        stepElem.classList.remove('completed');
+      } else {
+        stepElem.classList.remove('active', 'completed');
+      }
+    });
+  }
+
+  // Affiche/masque les .form-step et met à jour la barre
   const initializeSteps = () => {
-    steps.forEach((step, index) => step.classList.toggle('active', index === currentStep));
-    prevBtn.style.display   = currentStep > 0 ? 'inline-block' : 'none';
-    nextBtn.style.display   = currentStep < steps.length - 1 ? 'inline-block' : 'none';
+    steps.forEach((step, index) => {
+      step.classList.toggle('active', index === currentStep);
+    });
+
+    prevBtn.style.display = currentStep > 0 ? 'inline-block' : 'none';
+    nextBtn.style.display = currentStep < steps.length - 1 ? 'inline-block' : 'none';
     submitBtn.style.display = currentStep === steps.length - 1 ? 'inline-block' : 'none';
+
+    // Met à jour la barre d’avancement
     updateWizardStepsDisplay(currentStep);
-    if (currentStep === steps.length - 1) updateSummary();
+
+    // Mise à jour du résumé si on est à la dernière étape
+    if (currentStep === steps.length - 1) {
+      updateSummary();
+    }
   };
 
+  // Mets à jour le récap final
   const updateSummary = () => {
-    const map = {
+    const summaryFields = {
       summaryRole: 'role',
       summaryName: 'name',
       summaryEmail: 'email',
@@ -139,348 +186,235 @@ document.addEventListener('DOMContentLoaded', () => {
       summaryDescription: 'description',
       summaryPriority: 'priority',
     };
-    Object.entries(map).forEach(([sumId, fieldId]) => {
-      const inputEl = document.getElementById(fieldId);
-      const sumEl = document.getElementById(sumId);
-      if (inputEl && sumEl) sumEl.textContent = (inputEl.value || '').trim() || 'Non renseigné';
-    });
-  };
 
-  /* ========= Sélecteurs (rôle / type / priorité) ========= */
-  document.addEventListener('click', (e) => {
-    const btn = e.target.closest('.select-btn');
-    if (!btn) return;
-    const group = btn.closest('.button-group');
-    if (!group) return;
-
-    group.querySelectorAll('.select-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-
-    // input[type=hidden] situé juste après le .button-group
-    let hidden = group.nextElementSibling;
-    if (hidden && hidden.classList?.contains('field-error')) hidden = hidden.nextElementSibling;
-    if (hidden && hidden.type === 'hidden') hidden.value = btn.dataset.value || '';
-
-    // Nettoie les erreurs
-    const err = group.nextElementSibling?.classList?.contains('field-error') ? group.nextElementSibling : null;
-    group.classList.remove('invalid');
-    if (err) err.hidden = true;
-  });
-
-  /* ========= Suggestions de villes ========= */
-  let debounceTimeout, abortCtrl;
-  const fetchWithTimeout = (url, ms=8000) =>
-    Promise.race([
-      fetch(url, { signal: abortCtrl?.signal }),
-      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), ms))
-    ]);
-
-  const renderCityList = (list) => {
-    if (!Array.isArray(list) || !list.length) {
-      citySuggestionsContainer.innerHTML = '<p>Aucune ville trouvée pour ce code postal.</p>';
-      citySuggestionsContainer.style.display = 'block';
-      return;
+    for (const [summaryId, fieldId] of Object.entries(summaryFields)) {
+      const inputElement = document.getElementById(fieldId);
+      const summaryElement = document.getElementById(summaryId);
+      if (!inputElement || !summaryElement) continue;
+      const value = inputElement.value.trim() || 'Non renseigné';
+      summaryElement.textContent = value;
     }
-    citySuggestionsContainer.innerHTML =
-      '<ul>' + list.map(c => `<li tabindex="0">${c.nom}</li>`).join('') + '</ul>';
-    citySuggestionsContainer.style.display = 'block';
-
-    citySuggestionsContainer.querySelectorAll('li').forEach((li) => {
-      const pick = () => { cityInput.value = li.textContent; citySuggestionsContainer.style.display = 'none'; };
-      li.addEventListener('click', pick);
-      li.addEventListener('keydown', (e) => { if (e.key === 'Enter') pick(); });
-    });
   };
 
-  postalCodeInput.addEventListener('input', () => {
-    postalCodeInput.classList.remove('invalid');
-    clearTimeout(debounceTimeout);
-    if (abortCtrl) abortCtrl.abort();
-    abortCtrl = new AbortController();
-
-    debounceTimeout = setTimeout(async () => {
-      const cp = postalCodeInput.value.trim();
-      if (!/^\d{5}$/.test(cp)) { citySuggestionsContainer.style.display = 'none'; return; }
-
-      try {
-        const res = await fetchWithTimeout(
-          `https://geo.api.gouv.fr/communes?codePostal=${cp}&fields=nom&format=json&geometry=centre`,
-          8000
-        );
-        if (!res.ok) throw new Error('Erreur réseau');
-        const data = await res.json();
-        renderCityList(data || []);
-      } catch (e) {
-        console.error('Erreur villes :', e);
-        citySuggestionsContainer.innerHTML = '<p>Impossible de récupérer les données des villes.</p>';
-        citySuggestionsContainer.style.display = 'block';
-      }
-    }, 300);
-  });
-
-  // Popup au blur si CP valide mais hors zone
-  postalCodeInput.addEventListener('blur', () => {
-    const v = postalCodeInput.value.trim();
-    if (/^\d{5}$/.test(v) && !isAllowedPostalCode(v)) openPopup();
-  });
-
-  /* ========= Validation par étape ========= */
+  // Vérifie les champs obligatoires de l’étape courante
   const validateStep = () => {
-    const stepEl = steps[currentStep];
+    const currentStepElement = steps[currentStep];
+    const inputs = currentStepElement.querySelectorAll('input[required], textarea[required]');
     let isValid = true;
 
-    // Visibles (hors hidden)
-    stepEl.querySelectorAll('input[required]:not([type="hidden"]), textarea[required]').forEach((input) => {
-      const val = (input.value || '').trim();
-
-      if (input.type === 'email') {
-        const ok = validateEmail(val);
-        input.classList.toggle('invalid', !ok);
-        if (!ok) isValid = false;
-        return;
+    inputs.forEach((input) => {
+      if (input.type === 'email' && !validateEmail(input.value.trim())) {
+        input.classList.add('invalid');
+        isValid = false;
+      } else if (!input.value.trim()) {
+        input.classList.add('invalid');
+        isValid = false;
+      } else {
+        input.classList.remove('invalid');
       }
-      if (input.id === 'postalCode') {
-        const ok = isAllowedPostalCode(val);
-        input.classList.toggle('invalid', !ok);
-        if (!ok) isValid = false;
-        return;
-      }
-
-      const ok = !!val && (!input.pattern || new RegExp(input.pattern).test(val));
-      input.classList.toggle('invalid', !ok);
-      if (!ok) isValid = false;
     });
-
-    // Cachés (role/type/priority)
-    stepEl.querySelectorAll('input[type="hidden"][required]').forEach((hidden) => {
-      const ok = !!(hidden.value || '').trim();
-      let group = hidden.previousElementSibling;
-      if (group && !group.classList?.contains('button-group') && group.classList?.contains('field-error')) {
-        group = group.previousElementSibling;
-      }
-      if (group?.classList?.contains('button-group')) {
-        group.classList.toggle('invalid', !ok);
-        const err = group.nextElementSibling?.classList?.contains('field-error') ? group.nextElementSibling : null;
-        if (err) err.hidden = ok;
-      }
-      if (!ok) isValid = false;
-    });
-
     return isValid;
   };
 
-  // Nettoyage invalid en saisie
-  document.querySelectorAll('input, textarea').forEach((el) =>
-    el.addEventListener('input', () => el.classList.remove('invalid'))
-  );
+  // Retire la classe .invalid quand on modifie le champ
+  document.querySelectorAll('input, textarea').forEach((input) => {
+    input.addEventListener('input', () => {
+      input.classList.remove('invalid');
+    });
+  });
 
-  /* ========= Navigation ========= */
+  // Navigation "Précédent"
   prevBtn.addEventListener('click', () => {
-    if (currentStep > 0) { currentStep--; initializeSteps(); }
+    if (currentStep > 0) {
+      currentStep--;
+      initializeSteps();
+    }
   });
 
+  // Navigation "Suivant"
   nextBtn.addEventListener('click', () => {
-    if (!validateStep()) {
-      if (currentStep === 1) {
-        const v = postalCodeInput.value.trim();
-        if (/^\d{5}$/.test(v) && !isAllowedPostalCode(v)) openPopup();
+    if (validateStep()) {
+      if (currentStep < steps.length - 1) {
+        currentStep++;
+        initializeSteps();
       }
+    } else {
       showMessage('Veuillez remplir tous les champs obligatoires correctement avant de continuer.', 'error');
-      return;
     }
-
-    if (currentStep === 1) {
-      const v = postalCodeInput.value.trim();
-      if (!/^\d{5}$/.test(v)) { showMessage('Veuillez saisir un code postal valide (5 chiffres).', 'error'); return; }
-      if (!isAllowedPostalCode(v)) { openPopup(); return; }
-    }
-
-    if (currentStep < steps.length - 1) { currentStep++; initializeSteps(); }
   });
 
-  /* ========= Spinner & état d’envoi ========= */
-  const setSubmittingState = (isSubmitting) => {
-    if (!submitBtn) return;
-    if (isSubmitting) {
-      submitBtn.dataset.originalText = submitBtn.textContent;
-      submitBtn.textContent = 'Envoi en cours…';
-      submitBtn.classList.add('loading');
-      submitBtn.disabled = true;
-    } else {
-      submitBtn.textContent = submitBtn.dataset.originalText || 'Soumettre la demande';
-      submitBtn.classList.remove('loading');
-      submitBtn.disabled = false;
-    }
-  };
-
-  const resetInteractiveState = () => {
-    document.querySelectorAll('button, input, textarea, select').forEach(el => el.disabled = false);
-    document.querySelectorAll('.loading').forEach(el => el.classList.remove('loading'));
-    if (submitBtn) {
-      submitBtn.textContent = 'Soumettre la demande';
-      submitBtn.removeAttribute('data-original-text');
-      submitBtn.disabled = false;
-    }
-  };
-
-  /* ========= Confirmation & reset ========= */
+  // Réinitialise le formulaire
   const resetForm = () => {
-    // Reset natif
-    form.reset();
-
-    // Nettoyage UI
-    document.querySelectorAll('.button-group').forEach(g => g.classList.remove('invalid'));
-    document.querySelectorAll('.select-btn.active').forEach(b => b.classList.remove('active'));
-    citySuggestionsContainer.style.display = 'none';
-
-    // Vide explicitement les hidden
-    ['role','type','priority'].forEach(id => { const h = document.getElementById(id); if (h) h.value = ''; });
-
-    // Supprime l’étape confirmation si présente
-    document.querySelector('.form-step.confirmation')?.remove();
-
-    // Récap & messages
-    document.querySelectorAll('[id^="summary"]').forEach((el) => el.textContent = 'Non renseigné');
-    if (messageContainer) { messageContainer.style.display = 'none'; messageContainer.textContent = ''; }
-
-    // État interactif
-    resetInteractiveState();
-    setSubmittingState(false);
-
-    // Retour étape 0
+    document.getElementById('repairForm').reset();
+    const confirmationStep = document.querySelector('.form-step.confirmation');
+    if (confirmationStep) {
+      confirmationStep.remove();
+    }
+    const summaryElements = document.querySelectorAll('[id^="summary"]');
+    summaryElements.forEach((el) => {
+      el.textContent = 'Non renseigné';
+    });
     currentStep = 0;
     initializeSteps();
   };
 
+  // Affiche une page "Confirmation" quand le formulaire est soumis
   const showConfirmationMessage = (requestId) => {
     const confirmationStep = document.createElement('div');
     confirmationStep.classList.add('form-step', 'confirmation');
+
+    // Ici, on affiche requestId pour que ce soit le même numéro qu'on a généré
     confirmationStep.innerHTML = `
       <h2>Confirmation</h2>
       <p>Votre demande a été enregistrée avec succès.</p>
       <p>Numéro unique : <strong>${requestId}</strong></p>
       <p>Nous vous contacterons prochainement.</p>
-      <div class="form-navigation">
-        <button type="button" id="newRequestBtn" class="nav-btn nav-next">
-          <span>Nouvelle demande</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="currentColor" d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/>
-          </svg>
-        </button>
-      </div>
+      <button id="newRequestBtn" class="action-btn">Faire une autre demande</button>
     `;
+
     document.querySelector('.form-container').appendChild(confirmationStep);
 
-    steps.forEach((s) => s.classList.remove('active'));
+    // Masquer les autres étapes
+    steps.forEach((step) => step.classList.remove('active'));
     confirmationStep.classList.add('active');
 
+    // Masquer les boutons
     prevBtn.style.display = 'none';
     nextBtn.style.display = 'none';
     submitBtn.style.display = 'none';
 
-    // Barre : toutes cochées
-    updateWizardStepsDisplay(wizardSteps.length);
+    // Force l'étape 4 à être cochée
+    currentStep = steps.length; 
+    updateWizardStepsDisplay(currentStep);
 
     document.getElementById('newRequestBtn').addEventListener('click', resetForm);
   };
 
-  /* ========= Popup : liste d’attente ========= */
-  popupSendBtn?.addEventListener('click', async () => {
-    const email = (waitlistEmail?.value || '').trim();
-    if (!validateEmail(email)) { alert('Veuillez saisir un email valide.'); return; }
-    try {
-      if (window.emailjs?.send) {
-        await emailjs.send('service_uzzmtzc', 'template_waitlist', {
-          to_email: 'ben@smartimmo.pro',
-          prospect_email: email,
-          postal_code: (postalCodeInput.value || '').trim()
-        });
-      }
-      alert('Merci ! Nous vous préviendrons dès que le service sera disponible.');
-      closePopup(); if (waitlistEmail) waitlistEmail.value = '';
-    } catch (err) {
-      console.error('Erreur waitlist :', err);
-      alert("Impossible d'enregistrer votre email pour le moment. Réessayez plus tard.");
-    }
-  });
+  // Soumission du formulaire (EmailJS) — AVEC DEBUG DÉTAILLÉ
+  document.getElementById('repairForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
 
-  /* ========= Soumission ========= */
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    if (!validateStep()) {
-      showMessage('Veuillez remplir tous les champs obligatoires correctement avant de soumettre.', 'error');
-      return;
-    }
-    if (!cguCheckbox?.checked) {
-      showMessage('Vous devez accepter les Conditions Générales d’Utilisation avant de soumettre le formulaire.', 'error');
+    if (!cguCheckbox.checked) {
+      showMessage('Vous devez accepter les Conditions Générales d\'Utilisation avant de soumettre le formulaire.', 'error');
       return;
     }
 
-    const cp = (postalCodeInput.value || '').trim();
-    if (!/^\d{5}$/.test(cp) || !isAllowedPostalCode(cp)) { openPopup(); return; }
+    // On génère l'ID unique
+    const requestId = generateUniqueId();
 
-    const requestIdLocal = generateUniqueId(cp);
-    const data = {
-      name: document.getElementById('name').value.trim(),
-      email: document.getElementById('email').value.trim(),
-      phone: document.getElementById('phone').value.trim(),
-      address: document.getElementById('address').value.trim(),
-      city: cityInput.value.trim(),
-      postalCode: cp,
-      addressComplement: (document.getElementById('addressComplement').value || 'Non renseigné').trim(),
-      role: document.getElementById('role').value.trim(),
-      type: document.getElementById('type').value.trim(),
-      description: document.getElementById('description').value.trim(),
-      priority: document.getElementById('priority').value.trim(),
-      request_id: requestIdLocal
+    // Récupération des données
+    const formData = {
+      name: document.getElementById('name').value,
+      email: document.getElementById('email').value,
+      phone: document.getElementById('phone').value,
+      address: document.getElementById('address').value,
+      city: document.getElementById('city').value,
+      postalCode: document.getElementById('postalCode').value,
+      addressComplement: document.getElementById('addressComplement').value || 'Non renseigné',
+      role: document.getElementById('role').value,
+      type: document.getElementById('type').value,
+      description: document.getElementById('description').value,
+      priority: document.getElementById('priority').value
     };
 
     try {
-      setSubmittingState(true);
-
-      /* 1) Enregistrement dans Google Sheet via Apps Script */
-      const resp = await fetch(WEB_APP_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-      });
-      if (!resp.ok) throw new Error("Erreur réseau Apps Script (" + resp.status + ")");
-      const result = await resp.json();
-      if (result.status !== "success") throw new Error(result.message || "Échec enregistrement Apps Script");
-      const requestId = result.requestId || requestIdLocal;
-
-      /* 2) Envoi des emails en parallèle (ne bloque pas la confirmation si ça échoue) */
-      try {
-        if (!window.emailjs || !emailjs.send) throw new Error('EmailJS non chargé');
-
-        const toOwner = emailjs.send('service_uzzmtzc', 'template_bes6bcg', {
-          to_email: 'ben@smartimmo.pro', ...data, request_id: requestId
-        });
-        const toClient = emailjs.send('service_uzzmtzc', 'template_dtvz9jh', {
-          to_email: data.email, ...data, request_id: requestId
-        });
-
-        const results = await Promise.allSettled([toOwner, toClient]);
-        const someEmailFailed = results.some(r => r.status === 'rejected');
-        if (someEmailFailed) {
-          showMessage("Demande enregistrée, mais l'email de confirmation n'a pas pu être envoyé à tous les destinataires.", "error", 7000);
-        }
-      } catch (mailErr) {
-        console.warn("EmailJS a échoué:", mailErr);
-        showMessage("Demande enregistrée, mais l'email de confirmation n'a pas pu être envoyé.", "error", 7000);
+      // Vérifie la présence d'EmailJS
+      if (!window.emailjs || typeof emailjs.init !== 'function' || typeof emailjs.send !== 'function') {
+        showMessage(
+          "EmailJS n'est pas chargé. Vérifie la balise CDN dans index.html et l'ordre des scripts.<br><code>&lt;script src=\"https://cdn.jsdelivr.net/npm/@emailjs/browser@3.11.0/dist/email.min.js\"&gt;&lt;/script&gt;</code>",
+          'error',
+          12000
+        );
+        return;
       }
 
-      /* 3) Confirmation UI (quoi qu'il arrive si l'enregistrement est OK) */
-      showConfirmationMessage(requestId);
+      // Initialise EmailJS (User ID)
+      try {
+        emailjs.init('mgZZQLZBSBI7EbaiG');
+      } catch (initErr) {
+        console.error('EmailJS init error:', initErr);
+        showMessage(
+          `Échec init EmailJS. Détails: <code>${formatErrorDetail(initErr)}</code>`,
+          'error',
+          12000
+        );
+        return;
+      }
 
-    } catch (err) {
-      console.error('Erreur lors de la soumission :', err);
-      showMessage("Impossible d'enregistrer la demande pour le moment. Vérifiez votre connexion et réessayez.", 'error');
-      setSubmittingState(false);
+      // Envoi vers SmartImmo et vers le client en parallèle (debug partiel)
+      const toOwnerPromise = emailjs.send('service_uzzmtzc', 'template_bes6bcg', {
+        to_email: 'ben@smartimmo.pro',
+        from_name: formData.name,
+        from_email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        postalCode: formData.postalCode,
+        addressComplement: formData.addressComplement,
+        role: formData.role,
+        type: formData.type,
+        description: formData.description,
+        priority: formData.priority,
+        request_id: requestId
+      });
+
+      const toClientPromise = emailjs.send('service_uzzmtzc', 'template_dtvz9jh', {
+        to_email: formData.email,
+        from_name: formData.name,
+        from_email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        postalCode: formData.postalCode,
+        addressComplement: formData.addressComplement,
+        role: formData.role,
+        type: formData.type,
+        description: formData.description,
+        priority: formData.priority,
+        request_id: requestId
+      });
+
+      const results = await Promise.allSettled([toOwnerPromise, toClientPromise]);
+
+      const ownerRes = results[0];
+      const clientRes = results[1];
+
+      const ownerOK = ownerRes.status === 'fulfilled';
+      const clientOK = clientRes.status === 'fulfilled';
+
+      if (ownerOK && clientOK) {
+        // Succès complet
+        showConfirmationMessage(requestId);
+      } else {
+        // Échec partiel ou total — on affiche précisément quoi
+        const ownerErr = ownerOK ? '' : formatErrorDetail(ownerRes.reason);
+        const clientErr = clientOK ? '' : formatErrorDetail(clientRes.reason);
+
+        let msg = `<strong>Échec d'envoi EmailJS.</strong><br>`;
+        msg += `<ul style="margin:6px 0 0 18px;padding:0">`;
+        msg += `<li>Propriétaire (ben@smartimmo.pro) : ${ownerOK ? '✅ OK' : `❌ KO — <code>${ownerErr || 'Aucune info'}</code>`}</li>`;
+        msg += `<li>Client (${formData.email}) : ${clientOK ? '✅ OK' : `❌ KO — <code>${clientErr || 'Aucune info'}</code>`}</li>`;
+        msg += `</ul>`;
+        msg += `<div style="margin-top:8px;font-size:0.9em;opacity:0.9">Astuce : vérifie <code>service_uzzmtzc</code>, <code>template_bes6bcg</code>, <code>template_dtvz9jh</code> et ton <code>userId</code>. Consulte aussi la console (F12 &gt; Console/Network).</div>`;
+
+        showMessage(msg, 'error', 15000);
+      }
+
+    } catch (error) {
+      // Erreur générale (réseau, CORS, exception JS, etc.)
+      console.error('Erreur lors de l\'envoi :', error);
+      const details = formatErrorDetail(error);
+      const hint = (error && (error.name === 'TypeError' || /Network/i.test(error.message || '')))
+        ? "<br><em>Indice :</em> problème réseau/CORS. Vérifie que ton site est bien servi en <strong>HTTPS</strong> et que les bloqueurs ne perturbent pas la requête."
+        : '';
+      showMessage(
+        `Une erreur est survenue pendant l'envoi.<br><code>${details || 'Aucun détail transmis'}</code>${hint}`,
+        'error',
+        15000
+      );
     }
   });
 
-  /* GO */
+  // Initialisation globale
   initializeSteps();
 });
