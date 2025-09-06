@@ -26,8 +26,8 @@ const generateUniqueId = (postalCode) => {
 /** Départements autorisés */
 const ALLOWED_DEPARTMENTS = ['08', '51'];
 
-/** URL Apps Script (Web App /exec) — utilise bien TON URL déployée */
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxgw61JQiws1iKf2HHMl8XGDiw8dDGUxZR6NabXoT88seVFNhgiQDBl5W820wElCwOgjw/exec";
+/** URL Apps Script (Web App /exec) — mets bien TON URL déployée ici */
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby11VTNgTvfjtZqw-LqkdUEjBlG3mgCZT0bYt6uuEIRdNEJhu-24Rx3F3AlmOmlDRfiqw/exec";
 
 /* =========================================
    DEBUG HELPER iPad (amovible)
@@ -452,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
       type: document.getElementById('type').value,
       description: document.getElementById('description').value,
       priority: document.getElementById('priority').value,
-      request_id: requestId,      // ⛳️ cet ID sera écrit tel quel dans le Sheet (serveur ne le change pas)
+      request_id: requestId,      // ⛳️ cet ID est écrit tel quel dans le Sheet (le serveur ne le change pas)
       _ua: navigator.userAgent,   // debug utile côté Sheet
       _origin: location.origin    // debug utile côté Sheet
     };
@@ -462,17 +462,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       /* 1) Enregistrement Google Sheet (Apps Script)
          - pas de headers (évite préflight iOS)
-         - si échec réseau, on tente un fallback no-cors pour au moins envoyer
-         - on ne lit PAS la réponse (CORS), l’ID côté client fait foi car le serveur le conserve
+         - fallback no-cors si nécessaire (réponse opaque, mais POST parti)
+         - l’ID côté client fait foi car le serveur le conserve tel quel
       */
-      let wrote = false;
       try {
         await fetch(WEB_APP_URL, { method: "POST", body: JSON.stringify(data) });
-        wrote = true;
       } catch (err1) {
         try {
           await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(data) });
-          wrote = true; // réponse opaque mais POST parti
         } catch (err2) {
           console.error('Apps Script KO', err2);
           showMessage("Impossible d'enregistrer votre demande dans Google Sheet. Merci de réessayer.", 'error', 12000);
